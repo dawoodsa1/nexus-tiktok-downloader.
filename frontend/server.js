@@ -212,7 +212,8 @@ function sendError(res,statusCode,message){sendJson(res,statusCode,{success:fals
 
 const FILE_MAP = {
   '/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/legal.css':'legal.css',
-  '/about.html':'about.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/copyright.html':'copyright.html','/contact.html':'contact.html'
+  '/about.html':'about.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/copyright.html':'copyright.html','/contact.html':'contact.html',
+  '/googlec0345ce99ca76489.html':'googlec0345ce99ca76489.html'
 };
 const INDEXABLE_PATHS = ['','/about.html','/privacy.html','/terms.html','/copyright.html','/contact.html'];
 
