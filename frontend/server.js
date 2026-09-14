@@ -27,9 +27,20 @@ const PORT = Number(
   process.env.PORT || 3000
 );
 
-const SECRET =
-  process.env.TOKEN_SECRET ||
-  crypto.randomBytes(32).toString('hex');
+/*
+ * IMPORTANT:
+ * TOKEN_SECRET must remain unchanged between server restarts.
+ */
+const SECRET = process.env.TOKEN_SECRET;
+
+if (
+  !SECRET ||
+  SECRET.trim().length < 32
+) {
+  throw new Error(
+    'TOKEN_SECRET is missing or too short. Add a stable secret of at least 32 characters to .env'
+  );
+}
 
 const SESSION_TOKEN_TTL = 180;
 const DOWNLOAD_TOKEN_TTL = 300;
@@ -38,7 +49,7 @@ const MAX_URL_LENGTH = 2048;
 
 
 /* =========================================================
-   Allowed TikTok Hosts
+   Hosts
 ========================================================= */
 
 const ALLOWED_TIKTOK_HOSTS = new Set([
@@ -53,15 +64,15 @@ const ALLOWED_TIKTOK_HOSTS = new Set([
 
 
 /* =========================================================
-   Token Creation
+   Token
 ========================================================= */
 
 function createToken(payload, ttl) {
-  const now = Math.floor(
-    Date.now() / 1000
-  );
+  const now =
+    Math.floor(Date.now() / 1000);
 
   const body = {
+    v: 1,
     ...payload,
     iat: now,
     exp: now + ttl
@@ -80,23 +91,23 @@ function createToken(payload, ttl) {
 }
 
 
-/* =========================================================
-   Token Verification
-========================================================= */
-
 function verifyToken(token) {
   if (
     !token ||
     typeof token !== 'string'
   ) {
-    throw new Error('Invalid token.');
+    throw new Error(
+      'Invalid token.'
+    );
   }
 
   const separator =
     token.indexOf('.');
 
   if (separator <= 0) {
-    throw new Error('Invalid token.');
+    throw new Error(
+      'Invalid token.'
+    );
   }
 
   const data =
@@ -105,8 +116,13 @@ function verifyToken(token) {
   const signature =
     token.slice(separator + 1);
 
-  if (!data || !signature) {
-    throw new Error('Invalid token.');
+  if (
+    !data ||
+    !signature
+  ) {
+    throw new Error(
+      'Invalid token.'
+    );
   }
 
   const expected =
@@ -144,11 +160,12 @@ function verifyToken(token) {
   let payload;
 
   try {
-    payload = JSON.parse(
-      Buffer
-        .from(data, 'base64url')
-        .toString('utf8')
-    );
+    payload =
+      JSON.parse(
+        Buffer
+          .from(data, 'base64url')
+          .toString('utf8')
+      );
   } catch {
     throw new Error(
       'Invalid token payload.'
@@ -209,7 +226,8 @@ function validateTikTokUrl(rawUrl) {
   let parsed;
 
   try {
-    parsed = new URL(value);
+    parsed =
+      new URL(value);
   } catch {
     throw new Error(
       'Invalid URL.'
@@ -247,17 +265,16 @@ function isPrivateIp(address) {
     net.isIP(address);
 
   if (version === 4) {
-    const parts =
+
+    const [
+      a,
+      b
+    ] =
       address
         .split('.')
         .map(Number);
 
-    const a = parts[0];
-    const b = parts[1];
-
-    if (a === 10) {
-      return true;
-    }
+    if (a === 10) return true;
 
     if (
       a === 172 &&
@@ -274,9 +291,7 @@ function isPrivateIp(address) {
       return true;
     }
 
-    if (a === 127) {
-      return true;
-    }
+    if (a === 127) return true;
 
     if (
       a === 169 &&
@@ -285,20 +300,19 @@ function isPrivateIp(address) {
       return true;
     }
 
-    if (a === 0) {
-      return true;
-    }
+    if (a === 0) return true;
 
     return false;
   }
 
   if (version === 6) {
+
     const value =
       address.toLowerCase();
 
     if (
-      value === '::1' ||
-      value === '::'
+      value === '::' ||
+      value === '::1'
     ) {
       return true;
     }
@@ -374,7 +388,7 @@ async function assertSafeUrl(rawUrl) {
 
 
 /* =========================================================
-   Resolve Short TikTok URL
+   Resolve Short URL
 ========================================================= */
 
 async function resolveTikTokUrl(rawUrl) {
@@ -431,10 +445,44 @@ async function resolveTikTokUrl(rawUrl) {
 
 
 /* =========================================================
-   Helper: Extract Avatar URL
+   Decode TikTok escaped strings
 ========================================================= */
 
-function getAvatarUrl(author) {
+function decodeEscapedString(value) {
+  if (
+    typeof value !== 'string'
+  ) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(
+      `"${value
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+      }"`
+    );
+  } catch {
+    try {
+      return value
+        .replaceAll('\\/', '/')
+        .replaceAll('\u0026', '&')
+        .replaceAll('\\u0026', '&')
+        .replaceAll('\\u002F', '/')
+        .replaceAll('\\/', '/');
+    } catch {
+      return value;
+    }
+  }
+}
+
+
+/* =========================================================
+   Extract Avatar
+========================================================= */
+
+function getAvatarUrlFromAuthor(author) {
+
   if (!author) {
     return '';
   }
@@ -442,8 +490,10 @@ function getAvatarUrl(author) {
   const candidates = [
     author.avatarLarger,
     author.avatarMedium,
-    author.avatarThumb
+    author.avatarThumb,
+    author.avatar
   ];
+
 
   for (
     const candidate of candidates
@@ -451,20 +501,22 @@ function getAvatarUrl(author) {
 
     if (
       typeof candidate === 'string' &&
-      candidate.startsWith('http')
+      /^https?:\/\//i.test(candidate)
     ) {
       return candidate;
     }
 
+
     if (
-      candidate?.urlList &&
+      candidate &&
       Array.isArray(candidate.urlList)
     ) {
+
       const url =
         candidate.urlList.find(
           value =>
             typeof value === 'string' &&
-            value.startsWith('http')
+            /^https?:\/\//i.test(value)
         );
 
       if (url) {
@@ -477,6 +529,104 @@ function getAvatarUrl(author) {
 }
 
 
+function extractAvatarFromHtml(html) {
+
+  const patterns = [
+
+    /"avatarLarger":"([^"]+)"/i,
+
+    /"avatarMedium":"([^"]+)"/i,
+
+    /"avatarThumb":"([^"]+)"/i,
+
+    /"avatar":"([^"]+)"/i
+
+  ];
+
+
+  for (
+    const pattern of patterns
+  ) {
+
+    const match =
+      html.match(pattern);
+
+    if (!match) {
+      continue;
+    }
+
+    const decoded =
+      decodeEscapedString(
+        match[1]
+      );
+
+    if (
+      decoded &&
+      /^https?:\/\//i.test(decoded)
+    ) {
+      return decoded;
+    }
+  }
+
+  return '';
+}
+
+
+/* =========================================================
+   Extract Media
+========================================================= */
+
+function chooseHighestBitrate(
+  bitrateInfo
+) {
+
+  if (
+    !Array.isArray(bitrateInfo)
+  ) {
+    return null;
+  }
+
+  const candidates =
+    bitrateInfo
+      .map(entry => {
+
+        const urlList =
+          entry?.PlayAddr?.UrlList;
+
+        const url =
+          Array.isArray(urlList)
+            ? urlList.find(
+                value =>
+                  typeof value === 'string' &&
+                  /^https?:\/\//i.test(value)
+              )
+            : null;
+
+        return {
+          bitrate:
+            Number(
+              entry?.Bitrate || 0
+            ),
+
+          url
+        };
+
+      })
+      .filter(
+        item => item.url
+      );
+
+
+  candidates.sort(
+    (a, b) =>
+      b.bitrate - a.bitrate
+  );
+
+
+  return candidates[0]?.url || null;
+}
+
+
 /* =========================================================
    TikTok Extraction
 ========================================================= */
@@ -484,12 +634,10 @@ function getAvatarUrl(author) {
 async function extractTikTok(rawUrl) {
 
   const finalUrl =
-    await resolveTikTokUrl(rawUrl);
+    await resolveTikTokUrl(
+      rawUrl
+    );
 
-
-  /* -------------------------------------------------------
-     Video ID
-  ------------------------------------------------------- */
 
   const videoId =
     (
@@ -524,6 +672,7 @@ async function extractTikTok(rawUrl) {
         }
       );
 
+
     if (response.ok) {
 
       try {
@@ -540,11 +689,12 @@ async function extractTikTok(rawUrl) {
 
 
   /* -------------------------------------------------------
-     Fetch TikTok Page
+     TikTok Page
   ------------------------------------------------------- */
 
   const userAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131 Safari/537.36';
+
 
   const pageResponse =
     await fetch(
@@ -571,18 +721,20 @@ async function extractTikTok(rawUrl) {
       }
     );
 
+
   if (!pageResponse.ok) {
     throw new Error(
       `TikTok returned HTTP ${pageResponse.status}.`
     );
   }
 
+
   const html =
     await pageResponse.text();
 
 
   /* -------------------------------------------------------
-     Parse Universal Data
+     Universal Data
   ------------------------------------------------------- */
 
   let item = null;
@@ -591,6 +743,7 @@ async function extractTikTok(rawUrl) {
     html.match(
       /<script[^>]+id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>([\s\S]*?)<\/script>/i
     );
+
 
   if (rehydrate) {
 
@@ -607,7 +760,8 @@ async function extractTikTok(rawUrl) {
       item =
         scope?.['webapp.video-detail']
           ?.itemInfo
-          ?.itemStruct || null;
+          ?.itemStruct ||
+        null;
 
     } catch {
       item = null;
@@ -616,7 +770,7 @@ async function extractTikTok(rawUrl) {
 
 
   /* -------------------------------------------------------
-     Media
+     Media URLs
   ------------------------------------------------------- */
 
   let mediaUrl = null;
@@ -627,12 +781,9 @@ async function extractTikTok(rawUrl) {
 
   if (item?.video) {
 
-    /*
-     * Prefer playAddr as the primary available
-     * media source.
-     */
     mediaUrl =
       item.video.playAddr ||
+      item.video.downloadAddr ||
       null;
 
 
@@ -642,65 +793,15 @@ async function extractTikTok(rawUrl) {
       );
 
 
-    /* -----------------------------------------------------
-       Find highest bitrate candidate
-    ----------------------------------------------------- */
-
-    const bitrateInfo =
-      Array.isArray(
+    hdMediaUrl =
+      chooseHighestBitrate(
         item.video.bitrateInfo
-      )
-        ? item.video.bitrateInfo
-        : [];
-
-
-    const candidates =
-      bitrateInfo
-        .map(entry => {
-
-          const urlList =
-            entry?.PlayAddr
-              ?.UrlList;
-
-          const url =
-            Array.isArray(urlList)
-              ? urlList.find(
-                  value =>
-                    typeof value === 'string' &&
-                    value.startsWith('http')
-                )
-              : null;
-
-          return {
-            bitrate:
-              Number(
-                entry?.Bitrate || 0
-              ),
-
-            url
-          };
-
-        })
-        .filter(
-          entry => entry.url
-        );
-
-
-    candidates.sort(
-      (a, b) =>
-        b.bitrate - a.bitrate
-    );
-
-
-    if (candidates.length) {
-      hdMediaUrl =
-        candidates[0].url;
-    }
+      );
   }
 
 
   /* -------------------------------------------------------
-     Fallback playAddr from HTML
+     HTML fallback
   ------------------------------------------------------- */
 
   if (!mediaUrl) {
@@ -710,17 +811,19 @@ async function extractTikTok(rawUrl) {
         /"playAddr":"([^"]+)"/
       );
 
+
     if (match) {
 
-      try {
+      const decoded =
+        decodeEscapedString(
+          match[1]
+        );
 
-        mediaUrl =
-          JSON.parse(
-            `"${match[1]}"`
-          );
-
-      } catch {
-        mediaUrl = null;
+      if (
+        decoded &&
+        /^https?:\/\//i.test(decoded)
+      ) {
+        mediaUrl = decoded;
       }
     }
   }
@@ -734,12 +837,31 @@ async function extractTikTok(rawUrl) {
 
 
   /* -------------------------------------------------------
+     Avatar
+  ------------------------------------------------------- */
+
+  let avatar =
+    getAvatarUrlFromAuthor(
+      item?.author
+    );
+
+
+  if (!avatar) {
+    avatar =
+      extractAvatarFromHtml(
+        html
+      );
+  }
+
+
+  /* -------------------------------------------------------
      Security validation
   ------------------------------------------------------- */
 
   await assertSafeUrl(
     mediaUrl
   );
+
 
   if (hdMediaUrl) {
 
@@ -754,17 +876,7 @@ async function extractTikTok(rawUrl) {
 
 
   /* -------------------------------------------------------
-     Author
-  ------------------------------------------------------- */
-
-  const avatar =
-    getAvatarUrl(
-      item?.author
-    );
-
-
-  /* -------------------------------------------------------
-     Final result
+     Result
   ------------------------------------------------------- */
 
   return {
@@ -819,7 +931,7 @@ async function extractTikTok(rawUrl) {
 
 
 /* =========================================================
-   Download Media
+   Media Request
 ========================================================= */
 
 async function fetchMedia(
@@ -852,10 +964,6 @@ async function fetchMedia(
   };
 
 
-  /*
-   * Forward Range when the browser requests
-   * a specific byte range.
-   */
   if (
     clientRequest.headers.range
   ) {
@@ -884,7 +992,7 @@ async function fetchMedia(
     response.status === 403
   ) {
     throw new Error(
-      'TikTok media server rejected the media request (403). The media URL may have expired or require a refreshed source.'
+      'TikTok media server returned HTTP 403 for the current media source.'
     );
   }
 
@@ -908,7 +1016,7 @@ async function fetchMedia(
 
 
 /* =========================================================
-   JSON Response
+   JSON
 ========================================================= */
 
 function sendJson(
@@ -948,7 +1056,6 @@ function sendError(
     statusCode,
     {
       success: false,
-
       error: {
         message
       }
@@ -958,7 +1065,7 @@ function sendError(
 
 
 /* =========================================================
-   Frontend Files
+   Frontend
 ========================================================= */
 
 const FILE_MAP = {
@@ -990,16 +1097,12 @@ async function serveFrontend(
   }
 
 
-  const filePath =
-    path.join(
-      FRONTEND_DIR,
-      file
-    );
-
-
   const content =
     await fs.readFile(
-      filePath
+      path.join(
+        FRONTEND_DIR,
+        file
+      )
     );
 
 
@@ -1043,7 +1146,7 @@ async function serveFrontend(
 
 
 /* =========================================================
-   HTTP Server
+   Server
 ========================================================= */
 
 const server =
@@ -1064,9 +1167,9 @@ const server =
           );
 
 
-        /* =================================================
-           Create Session Token
-        ================================================= */
+        /* ---------------------------------------------------
+           Session Token
+        --------------------------------------------------- */
 
         if (
           req.method === 'POST' &&
@@ -1097,9 +1200,9 @@ const server =
         }
 
 
-        /* =================================================
+        /* ---------------------------------------------------
            Extract
-        ================================================= */
+        --------------------------------------------------- */
 
         if (
           req.method === 'GET' &&
@@ -1143,14 +1246,8 @@ const server =
 
 
           /*
-           * IMPORTANT:
-           *
-           * The download token stores the original
-           * TikTok URL rather than the temporary CDN URL.
-           *
-           * This allows /api/download to obtain a
-           * fresh media URL when the user actually
-           * presses Download.
+           * Store the TikTok source URL,
+           * not the temporary CDN URL.
            */
 
           const downloadToken =
@@ -1173,17 +1270,12 @@ const server =
 
 
           const responseData = {
-
             ...data,
 
             downloadUrl:
               `/api/download?token=${encodeURIComponent(downloadToken)}`
           };
 
-
-          /* -------------------------------------------------
-             HD token
-          ------------------------------------------------- */
 
           if (data.hdMediaUrl) {
 
@@ -1211,9 +1303,6 @@ const server =
           }
 
 
-          /*
-           * Do not expose internal extraction URLs.
-           */
           delete responseData.mediaUrl;
           delete responseData.hdMediaUrl;
           delete responseData.sourceUrl;
@@ -1225,17 +1314,15 @@ const server =
             200,
             {
               success: true,
-
-              data:
-                responseData
+              data: responseData
             }
           );
         }
 
 
-        /* =================================================
+        /* ---------------------------------------------------
            Download
-        ================================================= */
+        --------------------------------------------------- */
 
         if (
           req.method === 'GET' &&
@@ -1265,10 +1352,7 @@ const server =
 
 
           /*
-           * Re-extract the TikTok page NOW.
-           *
-           * This avoids relying on an old/expired
-           * TikTok CDN URL from the previous extraction.
+           * Get a fresh media source.
            */
 
           const freshData =
@@ -1280,11 +1364,6 @@ const server =
           let mediaUrl =
             freshData.mediaUrl;
 
-
-          /*
-           * HD request:
-           * use the highest available bitrate source.
-           */
 
           if (
             payload.q === 'hd' &&
@@ -1314,20 +1393,26 @@ const server =
           const contentType =
             mediaResponse
               .headers
-              .get('content-type') ||
+              .get(
+                'content-type'
+              ) ||
             'video/mp4';
 
 
           const contentLength =
             mediaResponse
               .headers
-              .get('content-length');
+              .get(
+                'content-length'
+              );
 
 
           const contentRange =
             mediaResponse
               .headers
-              .get('content-range');
+              .get(
+                'content-range'
+              );
 
 
           const safeId =
@@ -1371,21 +1456,18 @@ const server =
           if (contentLength) {
             responseHeaders[
               'Content-Length'
-            ] = contentLength;
+            ] =
+              contentLength;
           }
 
 
           if (contentRange) {
             responseHeaders[
               'Content-Range'
-            ] = contentRange;
+            ] =
+              contentRange;
           }
 
-
-          /*
-           * Preserve partial-content response
-           * when TikTok returns HTTP 206.
-           */
 
           const statusCode =
             mediaResponse.status === 206
@@ -1407,9 +1489,9 @@ const server =
         }
 
 
-        /* =================================================
+        /* ---------------------------------------------------
            Frontend
-        ================================================= */
+        --------------------------------------------------- */
 
         if (
           req.method === 'GET'
@@ -1427,10 +1509,6 @@ const server =
           }
         }
 
-
-        /* =================================================
-           404
-        ================================================= */
 
         return sendError(
           res,
@@ -1456,16 +1534,13 @@ const server =
         }
 
 
-        const message =
-          error?.message ||
-          'Internal server error.';
-
-
         let status = 400;
 
 
         if (
-          /token/i.test(message)
+          /token/i.test(
+            error?.message || ''
+          )
         ) {
           status = 401;
         }
@@ -1474,7 +1549,8 @@ const server =
         return sendError(
           res,
           status,
-          message
+          error?.message ||
+          'Internal server error.'
         );
       }
     }
@@ -1488,10 +1564,8 @@ const server =
 server.listen(
   PORT,
   () => {
-
     console.log(
       `Nexus TikTok Downloader running on port ${PORT}`
     );
-
   }
 );
