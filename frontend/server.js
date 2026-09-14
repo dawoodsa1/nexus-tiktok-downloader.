@@ -302,9 +302,9 @@ const server = http.createServer(async (req, res) => {
       if (!payload.sourceUrl || !payload.id) throw new Error('Invalid download token.');
       const freshData = await extractTikTok(payload.sourceUrl);
       const candidates = [];
-      if (payload.q === 'hd' && freshData.hdMediaUrl) candidates.push(freshData.hdMediaUrl);
-      if (freshData.downloadUrl) candidates.push(freshData.downloadUrl);
+      if (freshData.hdMediaUrl) candidates.push(freshData.hdMediaUrl);
       if (freshData.mediaUrl) candidates.push(freshData.mediaUrl);
+      if (freshData.downloadUrl) candidates.push(freshData.downloadUrl);
       const unique = [...new Set(candidates.filter(Boolean))];
       let mediaResponse = null;
 
