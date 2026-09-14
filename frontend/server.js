@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 
 /* =========================================================
-   Configuration
+   CONFIGURATION
 ========================================================= */
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,11 +27,18 @@ const PORT = Number(
   process.env.PORT || 3000
 );
 
-/*
- * IMPORTANT:
- * TOKEN_SECRET must remain unchanged between server restarts.
- */
-const SECRET = process.env.TOKEN_SECRET;
+const SECRET =
+  process.env.TOKEN_SECRET;
+
+const SESSION_TOKEN_TTL = 180;
+const DOWNLOAD_TOKEN_TTL = 300;
+
+const MAX_URL_LENGTH = 2048;
+
+
+/* =========================================================
+   SECRET VALIDATION
+========================================================= */
 
 if (
   !SECRET ||
@@ -42,14 +49,9 @@ if (
   );
 }
 
-const SESSION_TOKEN_TTL = 180;
-const DOWNLOAD_TOKEN_TTL = 300;
-
-const MAX_URL_LENGTH = 2048;
-
 
 /* =========================================================
-   Hosts
+   ALLOWED TIKTOK HOSTS
 ========================================================= */
 
 const ALLOWED_TIKTOK_HOSTS = new Set([
@@ -64,7 +66,7 @@ const ALLOWED_TIKTOK_HOSTS = new Set([
 
 
 /* =========================================================
-   Token
+   TOKEN CREATION
 ========================================================= */
 
 function createToken(payload, ttl) {
@@ -78,18 +80,24 @@ function createToken(payload, ttl) {
     exp: now + ttl
   };
 
-  const data = Buffer
-    .from(JSON.stringify(body))
-    .toString('base64url');
+  const data =
+    Buffer
+      .from(JSON.stringify(body))
+      .toString('base64url');
 
-  const signature = crypto
-    .createHmac('sha256', SECRET)
-    .update(data)
-    .digest('base64url');
+  const signature =
+    crypto
+      .createHmac('sha256', SECRET)
+      .update(data)
+      .digest('base64url');
 
   return `${data}.${signature}`;
 }
 
+
+/* =========================================================
+   TOKEN VERIFICATION
+========================================================= */
 
 function verifyToken(token) {
   if (
@@ -189,12 +197,12 @@ function verifyToken(token) {
 
 
 /* =========================================================
-   TikTok URL Validation
+   TIKTOK URL VALIDATION
 ========================================================= */
 
 function isAllowedTikTokHost(hostname) {
   const host =
-    hostname
+    String(hostname || '')
       .toLowerCase()
       .replace(/\.$/, '');
 
@@ -257,7 +265,7 @@ function validateTikTokUrl(rawUrl) {
 
 
 /* =========================================================
-   IP / SSRF Protection
+   IP / SSRF PROTECTION
 ========================================================= */
 
 function isPrivateIp(address) {
@@ -274,7 +282,9 @@ function isPrivateIp(address) {
         .split('.')
         .map(Number);
 
-    if (a === 10) return true;
+    if (a === 10) {
+      return true;
+    }
 
     if (
       a === 172 &&
@@ -291,7 +301,9 @@ function isPrivateIp(address) {
       return true;
     }
 
-    if (a === 127) return true;
+    if (a === 127) {
+      return true;
+    }
 
     if (
       a === 169 &&
@@ -300,7 +312,9 @@ function isPrivateIp(address) {
       return true;
     }
 
-    if (a === 0) return true;
+    if (a === 0) {
+      return true;
+    }
 
     return false;
   }
@@ -388,64 +402,54 @@ async function assertSafeUrl(rawUrl) {
 
 
 /* =========================================================
-   Resolve Short URL
+   COOKIE EXTRACTION
 ========================================================= */
 
-async function resolveTikTokUrl(rawUrl) {
-  const validated =
-    validateTikTokUrl(rawUrl);
+function getResponseCookies(response) {
+  try {
 
-  const parsed =
-    new URL(validated);
+    if (
+      typeof response.headers.getSetCookie ===
+      'function'
+    ) {
 
-  const hostname =
-    parsed.hostname.toLowerCase();
-
-  if (
-    hostname === 'vm.tiktok.com' ||
-    hostname === 'vt.tiktok.com'
-  ) {
-
-    const response =
-      await fetch(
-        validated,
-        {
-          method: 'GET',
-          redirect: 'follow',
-
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
-
-            'Accept':
-              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-
-            'Accept-Language':
-              'en-US,en;q=0.9'
-          },
-
-          signal:
-            AbortSignal.timeout(15000)
-        }
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        `TikTok redirect failed (${response.status}).`
-      );
+      return response
+        .headers
+        .getSetCookie()
+        .map(cookie =>
+          cookie.split(';')[0]
+        )
+        .filter(Boolean)
+        .join('; ');
     }
 
-    return validateTikTokUrl(
-      response.url
-    );
-  }
 
-  return validated;
+    const raw =
+      response.headers.get(
+        'set-cookie'
+      );
+
+    if (!raw) {
+      return '';
+    }
+
+
+    return raw
+      .split(/,(?=[^;,]+=)/)
+      .map(cookie =>
+        cookie.split(';')[0]
+      )
+      .filter(Boolean)
+      .join('; ');
+
+  } catch {
+    return '';
+  }
 }
 
 
 /* =========================================================
-   Decode TikTok escaped strings
+   DECODE ESCAPED STRINGS
 ========================================================= */
 
 function decodeEscapedString(value) {
@@ -455,34 +459,39 @@ function decodeEscapedString(value) {
     return null;
   }
 
+  let result =
+    value
+      .replaceAll('\\/', '/')
+      .replaceAll(
+        '\\u0026',
+        '&'
+      )
+      .replaceAll(
+        '\\u002F',
+        '/'
+      );
+
   try {
-    return JSON.parse(
-      `"${value
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"')
-      }"`
-    );
+    result =
+      JSON.parse(
+        `"${result
+          .replace(/\\/g, '\\\\')
+          .replace(/"/g, '\\"')
+        }"`
+      );
   } catch {
-    try {
-      return value
-        .replaceAll('\\/', '/')
-        .replaceAll('\u0026', '&')
-        .replaceAll('\\u0026', '&')
-        .replaceAll('\\u002F', '/')
-        .replaceAll('\\/', '/');
-    } catch {
-      return value;
-    }
+    // Keep the fallback value.
   }
+
+  return result;
 }
 
 
 /* =========================================================
-   Extract Avatar
+   AVATAR EXTRACTION
 ========================================================= */
 
 function getAvatarUrlFromAuthor(author) {
-
   if (!author) {
     return '';
   }
@@ -494,7 +503,6 @@ function getAvatarUrlFromAuthor(author) {
     author.avatar
   ];
 
-
   for (
     const candidate of candidates
   ) {
@@ -505,7 +513,6 @@ function getAvatarUrlFromAuthor(author) {
     ) {
       return candidate;
     }
-
 
     if (
       candidate &&
@@ -530,19 +537,12 @@ function getAvatarUrlFromAuthor(author) {
 
 
 function extractAvatarFromHtml(html) {
-
   const patterns = [
-
     /"avatarLarger":"([^"]+)"/i,
-
     /"avatarMedium":"([^"]+)"/i,
-
     /"avatarThumb":"([^"]+)"/i,
-
     /"avatar":"([^"]+)"/i
-
   ];
-
 
   for (
     const pattern of patterns
@@ -573,7 +573,7 @@ function extractAvatarFromHtml(html) {
 
 
 /* =========================================================
-   Extract Media
+   HIGHEST BITRATE
 ========================================================= */
 
 function chooseHighestBitrate(
@@ -591,7 +591,9 @@ function chooseHighestBitrate(
       .map(entry => {
 
         const urlList =
-          entry?.PlayAddr?.UrlList;
+          entry
+            ?.PlayAddr
+            ?.UrlList;
 
         const url =
           Array.isArray(urlList)
@@ -623,15 +625,86 @@ function chooseHighestBitrate(
   );
 
 
-  return candidates[0]?.url || null;
+  return (
+    candidates[0]?.url ||
+    null
+  );
 }
 
 
 /* =========================================================
-   TikTok Extraction
+   RESOLVE SHORT TIKTOK URL
 ========================================================= */
 
-async function extractTikTok(rawUrl) {
+async function resolveTikTokUrl(
+  rawUrl
+) {
+
+  const validated =
+    validateTikTokUrl(
+      rawUrl
+    );
+
+  const parsed =
+    new URL(validated);
+
+  const hostname =
+    parsed.hostname.toLowerCase();
+
+
+  if (
+    hostname === 'vm.tiktok.com' ||
+    hostname === 'vt.tiktok.com'
+  ) {
+
+    const response =
+      await fetch(
+        validated,
+        {
+          method: 'GET',
+          redirect: 'follow',
+
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131 Safari/537.36',
+
+            'Accept':
+              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+
+            'Accept-Language':
+              'en-US,en;q=0.9'
+          },
+
+          signal:
+            AbortSignal.timeout(15000)
+        }
+      );
+
+
+    if (!response.ok) {
+      throw new Error(
+        `TikTok redirect failed (${response.status}).`
+      );
+    }
+
+
+    return validateTikTokUrl(
+      response.url
+    );
+  }
+
+
+  return validated;
+}
+
+
+/* =========================================================
+   EXTRACT TIKTOK DATA
+========================================================= */
+
+async function extractTikTok(
+  rawUrl
+) {
 
   const finalUrl =
     await resolveTikTokUrl(
@@ -689,7 +762,7 @@ async function extractTikTok(rawUrl) {
 
 
   /* -------------------------------------------------------
-     TikTok Page
+     TikTok page
   ------------------------------------------------------- */
 
   const userAgent =
@@ -700,6 +773,7 @@ async function extractTikTok(rawUrl) {
     await fetch(
       finalUrl,
       {
+        method: 'GET',
         redirect: 'follow',
 
         headers: {
@@ -707,13 +781,16 @@ async function extractTikTok(rawUrl) {
             userAgent,
 
           'Accept':
-            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
 
           'Accept-Language':
             'en-US,en;q=0.9',
 
           'Cache-Control':
-            'no-cache'
+            'no-cache',
+
+          'Upgrade-Insecure-Requests':
+            '1'
         },
 
         signal:
@@ -731,6 +808,12 @@ async function extractTikTok(rawUrl) {
 
   const html =
     await pageResponse.text();
+
+
+  const cookies =
+    getResponseCookies(
+      pageResponse
+    );
 
 
   /* -------------------------------------------------------
@@ -758,7 +841,8 @@ async function extractTikTok(rawUrl) {
         json?.__DEFAULT_SCOPE__ || {};
 
       item =
-        scope?.['webapp.video-detail']
+        scope
+          ?.['webapp.video-detail']
           ?.itemInfo
           ?.itemStruct ||
         null;
@@ -774,6 +858,7 @@ async function extractTikTok(rawUrl) {
   ------------------------------------------------------- */
 
   let mediaUrl = null;
+  let downloadUrl = null;
   let hdMediaUrl = null;
 
   let duration = 0;
@@ -783,6 +868,10 @@ async function extractTikTok(rawUrl) {
 
     mediaUrl =
       item.video.playAddr ||
+      null;
+
+
+    downloadUrl =
       item.video.downloadAddr ||
       null;
 
@@ -801,7 +890,7 @@ async function extractTikTok(rawUrl) {
 
 
   /* -------------------------------------------------------
-     HTML fallback
+     Fallback media URL
   ------------------------------------------------------- */
 
   if (!mediaUrl) {
@@ -823,16 +912,58 @@ async function extractTikTok(rawUrl) {
         decoded &&
         /^https?:\/\//i.test(decoded)
       ) {
-        mediaUrl = decoded;
+        mediaUrl =
+          decoded;
       }
     }
   }
 
 
-  if (!mediaUrl) {
+  /* -------------------------------------------------------
+     Fallback downloadAddr
+  ------------------------------------------------------- */
+
+  if (!downloadUrl) {
+
+    const match =
+      html.match(
+        /"downloadAddr":"([^"]+)"/
+      );
+
+
+    if (match) {
+
+      const decoded =
+        decodeEscapedString(
+          match[1]
+        );
+
+      if (
+        decoded &&
+        /^https?:\/\//i.test(decoded)
+      ) {
+        downloadUrl =
+          decoded;
+      }
+    }
+  }
+
+
+  if (!mediaUrl && !downloadUrl) {
     throw new Error(
       'Could not retrieve an available MP4 stream from TikTok.'
     );
+  }
+
+
+  /*
+   * If playAddr is unavailable,
+   * use downloadAddr as the primary source.
+   */
+
+  if (!mediaUrl) {
+    mediaUrl =
+      downloadUrl;
   }
 
 
@@ -855,12 +986,31 @@ async function extractTikTok(rawUrl) {
 
 
   /* -------------------------------------------------------
-     Security validation
+     Validate media URLs
   ------------------------------------------------------- */
 
-  await assertSafeUrl(
-    mediaUrl
-  );
+  if (mediaUrl) {
+
+    try {
+      await assertSafeUrl(
+        mediaUrl
+      );
+    } catch {
+      mediaUrl = null;
+    }
+  }
+
+
+  if (downloadUrl) {
+
+    try {
+      await assertSafeUrl(
+        downloadUrl
+      );
+    } catch {
+      downloadUrl = null;
+    }
+  }
 
 
   if (hdMediaUrl) {
@@ -872,6 +1022,19 @@ async function extractTikTok(rawUrl) {
     } catch {
       hdMediaUrl = null;
     }
+  }
+
+
+  if (!mediaUrl && downloadUrl) {
+    mediaUrl =
+      downloadUrl;
+  }
+
+
+  if (!mediaUrl) {
+    throw new Error(
+      'No valid media URL was found.'
+    );
   }
 
 
@@ -900,12 +1063,24 @@ async function extractTikTok(rawUrl) {
 
     mediaUrl,
 
+    downloadUrl,
+
     hdMediaUrl,
 
     sourceUrl:
       finalUrl,
 
-    userAgent,
+    mediaHeaders: {
+
+      'User-Agent':
+        userAgent,
+
+      'Referer':
+        finalUrl,
+
+      'Cookie':
+        cookies
+    },
 
     author: {
 
@@ -931,13 +1106,12 @@ async function extractTikTok(rawUrl) {
 
 
 /* =========================================================
-   Media Request
+   FETCH MEDIA
 ========================================================= */
 
 async function fetchMedia(
   mediaUrl,
-  sourceUrl,
-  userAgent,
+  mediaHeaders,
   clientRequest
 ) {
 
@@ -949,19 +1123,24 @@ async function fetchMedia(
   const headers = {
 
     'User-Agent':
-      userAgent ||
+      mediaHeaders?.['User-Agent'] ||
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
 
     'Accept':
       '*/*',
 
     'Referer':
-      sourceUrl ||
-      'https://www.tiktok.com/',
-
-    'Origin':
-      'https://www.tiktok.com'
+      mediaHeaders?.['Referer'] ||
+      'https://www.tiktok.com/'
   };
+
+
+  if (
+    mediaHeaders?.Cookie
+  ) {
+    headers.Cookie =
+      mediaHeaders.Cookie;
+  }
 
 
   if (
@@ -988,35 +1167,12 @@ async function fetchMedia(
     );
 
 
-  if (
-    response.status === 403
-  ) {
-    throw new Error(
-      'TikTok media server returned HTTP 403 for the current media source.'
-    );
-  }
-
-
-  if (!response.ok) {
-    throw new Error(
-      `Media server returned HTTP ${response.status}.`
-    );
-  }
-
-
-  if (!response.body) {
-    throw new Error(
-      'Media response has no body.'
-    );
-  }
-
-
   return response;
 }
 
 
 /* =========================================================
-   JSON
+   JSON RESPONSE
 ========================================================= */
 
 function sendJson(
@@ -1039,6 +1195,7 @@ function sendJson(
     }
   );
 
+
   res.end(
     JSON.stringify(data)
   );
@@ -1056,6 +1213,7 @@ function sendError(
     statusCode,
     {
       success: false,
+
       error: {
         message
       }
@@ -1065,7 +1223,7 @@ function sendError(
 
 
 /* =========================================================
-   Frontend
+   FRONTEND FILES
 ========================================================= */
 
 const FILE_MAP = {
@@ -1116,13 +1274,9 @@ async function serveFrontend(
 
   if (ext === '.html') {
     mime = 'text/html';
-  }
-
-  if (ext === '.css') {
+  } else if (ext === '.css') {
     mime = 'text/css';
-  }
-
-  if (ext === '.js') {
+  } else if (ext === '.js') {
     mime = 'application/javascript';
   }
 
@@ -1146,7 +1300,7 @@ async function serveFrontend(
 
 
 /* =========================================================
-   Server
+   HTTP SERVER
 ========================================================= */
 
 const server =
@@ -1167,9 +1321,9 @@ const server =
           );
 
 
-        /* ---------------------------------------------------
-           Session Token
-        --------------------------------------------------- */
+        /* =================================================
+           SESSION TOKEN
+        ================================================= */
 
         if (
           req.method === 'POST' &&
@@ -1182,6 +1336,7 @@ const server =
                 session:
                   crypto.randomUUID()
               },
+
               SESSION_TOKEN_TTL
             );
 
@@ -1200,9 +1355,9 @@ const server =
         }
 
 
-        /* ---------------------------------------------------
-           Extract
-        --------------------------------------------------- */
+        /* =================================================
+           EXTRACT
+        ================================================= */
 
         if (
           req.method === 'GET' &&
@@ -1246,8 +1401,10 @@ const server =
 
 
           /*
-           * Store the TikTok source URL,
-           * not the temporary CDN URL.
+           * IMPORTANT:
+           * Store the original TikTok URL.
+           *
+           * Do NOT store the temporary CDN URL.
            */
 
           const downloadToken =
@@ -1259,17 +1416,16 @@ const server =
                 sourceUrl:
                   data.sourceUrl,
 
-                userAgent:
-                  data.userAgent,
-
                 q:
                   'sd'
               },
+
               DOWNLOAD_TOKEN_TTL
             );
 
 
           const responseData = {
+
             ...data,
 
             downloadUrl:
@@ -1277,7 +1433,9 @@ const server =
           };
 
 
-          if (data.hdMediaUrl) {
+          if (
+            data.hdMediaUrl
+          ) {
 
             const hdToken =
               createToken(
@@ -1288,12 +1446,10 @@ const server =
                   sourceUrl:
                     data.sourceUrl,
 
-                  userAgent:
-                    data.userAgent,
-
                   q:
                     'hd'
                 },
+
                 DOWNLOAD_TOKEN_TTL
               );
 
@@ -1303,10 +1459,24 @@ const server =
           }
 
 
+          /*
+           * Never expose internal media URLs.
+           */
+
           delete responseData.mediaUrl;
+          delete responseData.downloadUrl;
           delete responseData.hdMediaUrl;
           delete responseData.sourceUrl;
-          delete responseData.userAgent;
+          delete responseData.mediaHeaders;
+
+
+          /*
+           * Restore the public download URL
+           * after removing the internal field.
+           */
+
+          responseData.downloadUrl =
+            `/api/download?token=${encodeURIComponent(downloadToken)}`;
 
 
           return sendJson(
@@ -1320,9 +1490,9 @@ const server =
         }
 
 
-        /* ---------------------------------------------------
-           Download
-        --------------------------------------------------- */
+        /* =================================================
+           DOWNLOAD
+        ================================================= */
 
         if (
           req.method === 'GET' &&
@@ -1352,7 +1522,8 @@ const server =
 
 
           /*
-           * Get a fresh media source.
+           * Re-fetch the TikTok page immediately
+           * before downloading the media.
            */
 
           const freshData =
@@ -1361,34 +1532,161 @@ const server =
             );
 
 
-          let mediaUrl =
-            freshData.mediaUrl;
+          /*
+           * Build candidate sources.
+           */
+
+          const candidates = [];
 
 
           if (
-            payload.q === 'hd' &&
-            freshData.hdMediaUrl
+            payload.q === 'hd'
           ) {
-            mediaUrl =
-              freshData.hdMediaUrl;
+
+            if (
+              freshData.hdMediaUrl
+            ) {
+              candidates.push(
+                freshData.hdMediaUrl
+              );
+            }
+
           }
 
 
-          if (!mediaUrl) {
+          if (
+            freshData.mediaUrl
+          ) {
+            candidates.push(
+              freshData.mediaUrl
+            );
+          }
+
+
+          if (
+            freshData.downloadUrl
+          ) {
+            candidates.push(
+              freshData.downloadUrl
+            );
+          }
+
+
+          /*
+           * Remove duplicate URLs.
+           */
+
+          const uniqueCandidates =
+            [
+              ...new Set(
+                candidates
+                  .filter(Boolean)
+              )
+            ];
+
+
+          if (
+            !uniqueCandidates.length
+          ) {
             throw new Error(
               'No media source is currently available.'
             );
           }
 
 
-          const mediaResponse =
-            await fetchMedia(
-              mediaUrl,
-              freshData.sourceUrl,
-              freshData.userAgent,
-              req
-            );
+          let mediaResponse = null;
+          let selectedUrl = null;
+          let lastStatus = null;
 
+
+          /*
+           * Try every available source.
+           */
+
+          for (
+            const candidate
+            of uniqueCandidates
+          ) {
+
+            try {
+
+              console.log(
+                'Trying media source:',
+                new URL(candidate).hostname
+              );
+
+
+              const response =
+                await fetchMedia(
+                  candidate,
+                  freshData.mediaHeaders,
+                  req
+                );
+
+
+              if (
+                response.ok &&
+                response.body
+              ) {
+
+                mediaResponse =
+                  response;
+
+                selectedUrl =
+                  candidate;
+
+                break;
+              }
+
+
+              lastStatus =
+                response.status;
+
+
+              console.log(
+                `Media source returned HTTP ${response.status}`
+              );
+
+            } catch (error) {
+
+              console.error(
+                'Media source failed:',
+                error?.message
+              );
+            }
+          }
+
+
+          if (
+            !mediaResponse
+          ) {
+
+            if (
+              lastStatus === 403
+            ) {
+              throw new Error(
+                'TikTok CDN rejected all available media sources (403).'
+              );
+            }
+
+
+            throw new Error(
+              `Unable to retrieve media. Last HTTP status: ${lastStatus || 'unknown'}`
+            );
+          }
+
+
+          console.log(
+            'Selected media source:',
+            selectedUrl
+              ? new URL(selectedUrl).hostname
+              : 'unknown'
+          );
+
+
+          /* -------------------------------------------------
+             Response headers
+          ------------------------------------------------- */
 
           const contentType =
             mediaResponse
@@ -1415,10 +1713,19 @@ const server =
               );
 
 
+          const acceptRanges =
+            mediaResponse
+              .headers
+              .get(
+                'accept-ranges'
+              );
+
+
           const safeId =
             String(
               freshData.id ||
-              payload.id
+              payload.id ||
+              'video'
             )
               .replace(
                 /[^a-zA-Z0-9_-]/g,
@@ -1446,11 +1753,21 @@ const server =
               'no-store',
 
             'X-Content-Type-Options':
-              'nosniff',
-
-            'Accept-Ranges':
-              'bytes'
+              'nosniff'
           };
+
+
+          if (acceptRanges) {
+            responseHeaders[
+              'Accept-Ranges'
+            ] =
+              acceptRanges;
+          } else {
+            responseHeaders[
+              'Accept-Ranges'
+            ] =
+              'bytes';
+          }
 
 
           if (contentLength) {
@@ -1468,6 +1785,10 @@ const server =
               contentRange;
           }
 
+
+          /*
+           * Preserve HTTP 206 for range requests.
+           */
 
           const statusCode =
             mediaResponse.status === 206
@@ -1489,9 +1810,9 @@ const server =
         }
 
 
-        /* ---------------------------------------------------
-           Frontend
-        --------------------------------------------------- */
+        /* =================================================
+           FRONTEND
+        ================================================= */
 
         if (
           req.method === 'GET'
@@ -1509,6 +1830,10 @@ const server =
           }
         }
 
+
+        /* =================================================
+           404
+        ================================================= */
 
         return sendError(
           res,
@@ -1534,23 +1859,27 @@ const server =
         }
 
 
-        let status = 400;
+        const message =
+          error?.message ||
+          'Internal server error.';
+
+
+        let statusCode = 400;
 
 
         if (
           /token/i.test(
-            error?.message || ''
+            message
           )
         ) {
-          status = 401;
+          statusCode = 401;
         }
 
 
         return sendError(
           res,
-          status,
-          error?.message ||
-          'Internal server error.'
+          statusCode,
+          message
         );
       }
     }
@@ -1558,14 +1887,16 @@ const server =
 
 
 /* =========================================================
-   Start
+   START SERVER
 ========================================================= */
 
 server.listen(
   PORT,
   () => {
+
     console.log(
       `Nexus TikTok Downloader running on port ${PORT}`
     );
+
   }
 );
