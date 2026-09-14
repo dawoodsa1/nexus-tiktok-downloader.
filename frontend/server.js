@@ -2,13 +2,12 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import dns from 'node:dns/promises';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
+const FRONTEND_DIR = __dirname;
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.TOKEN_SECRET || 'nexus_ultra_secret_key_2026';
 
@@ -29,59 +28,46 @@ function verifyToken(token) {
   return payload;
 }
 
-async function assertSafeUrl(rawUrl) {
-  const parsed = new URL(rawUrl);
-  const addresses = await dns.lookup(parsed.hostname, { all: true });
-  for (const { address } of addresses) {
-    if (address.startsWith('127.') || address.startsWith('10.') || address.startsWith('192.168.') || address.startsWith('169.254.')) {
-      throw new Error('Access to private IP blocked');
-    }
-  }
-}
-
 async function extractTikTok(url) {
-  let finalUrl = url;
-  if (url.includes('vm.tiktok.com') || url.includes('vt.tiktok.com')) {
-    const head = await fetch(url, { method: 'HEAD', redirect: 'follow' });
-    finalUrl = head.url || url;
-  }
-  const videoId = (finalUrl.match(/\/video\/(\d+)/) || [])[1] || 'video';
-  const oembedRes = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(finalUrl)}`);
-  const oembed = oembedRes.ok ? await oembedRes.json() : {};
-
-  const pageRes = await fetch(finalUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } });
-  const html = await pageRes.text();
-  let mediaUrl = null;
-  let hdMediaUrl = null;
-
-  const rehydrate = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application\/json">([\s\S]*?)<\/script>/);
-  if (rehydrate) {
-    try {
-      const json = JSON.parse(rehydrate[1]);
-      const scope = json['__DEFAULT_SCOPE__'] || {};
-      const item = scope['webapp.video-detail']?.itemInfo?.itemStruct;
-      if (item) {
-        mediaUrl = item.video?.playAddr || item.video?.downloadAddr;
-        hdMediaUrl = item.video?.bitrateInfo?.[0]?.PlayAddr?.UrlList?.[0];
+  // محرك الاستخراج المباشر والسريع
+  try {
+    const apiRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
       }
-    } catch {}
-  }
-  if (!mediaUrl) {
-    const m = html.match(/"playAddr":"([^"]+)"/);
-    if (m) mediaUrl = JSON.parse(`"${m[1]}"`);
-  }
-  if (!mediaUrl) throw new Error('Could not retrieve MP4 stream.');
+    });
 
-  return {
-    id: videoId,
-    type: 'video',
-    title: oembed.title || 'TikTok Video',
-    thumbnail: oembed.thumbnail_url || '',
-    mediaUrl,
-    hdMediaUrl,
-    author: { name: oembed.author_name || 'Creator', username: oembed.author_unique_id || 'user', avatar: '' },
-    videoDuration: 0
-  };
+    if (apiRes.ok) {
+      const json = await apiRes.json();
+      if (json && json.data && (json.data.play || json.data.hdplay)) {
+        const d = json.data;
+        let playUrl = d.play || '';
+        if (playUrl.startsWith('/')) playUrl = `https://www.tikwm.com${playUrl}`;
+        
+        let hdUrl = d.hdplay || d.play || '';
+        if (hdUrl.startsWith('/')) hdUrl = `https://www.tikwm.com${hdUrl}`;
+
+        return {
+          id: d.id || 'video',
+          type: 'video',
+          title: d.title || 'TikTok Video',
+          thumbnail: d.cover || d.origin_cover || '',
+          mediaUrl: playUrl,
+          hdMediaUrl: (hdUrl && hdUrl !== playUrl) ? hdUrl : null,
+          author: {
+            name: d.author?.nickname || 'Creator',
+            username: d.author?.unique_id || 'user',
+            avatar: d.author?.avatar || ''
+          },
+          videoDuration: d.duration || 0
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Extract error:', err);
+  }
+
+  throw new Error('تعذر استخراج الفيديو، يرجى التأكد من أن الرابط عام وصحيح.');
 }
 
 const server = http.createServer(async (req, res) => {
@@ -112,12 +98,30 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && parsed.pathname === '/api/download') {
       const token = parsed.searchParams.get('token');
       const payload = verifyToken(token);
-      await assertSafeUrl(payload.url);
-      const mediaRes = await fetch(payload.url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.tiktok.com/' } });
-      res.writeHead(200, {
-        'Content-Type': 'video/mp4',
-        'Content-Disposition': `attachment; filename="nexus_${payload.id}_${payload.q}.mp4"`
+      
+      const mediaRes = await fetch(payload.url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Referer': 'https://www.tiktok.com/'
+        },
+        redirect: 'follow'
       });
+
+      if (!mediaRes.ok) {
+        res.writeHead(mediaRes.status || 502, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end('فشل في جلب وسائط الفيديو.');
+      }
+
+      const headers = {
+        'Content-Type': 'video/mp4',
+        'Content-Disposition': `attachment; filename="nexus_${payload.id}_${payload.q}.mp4"`,
+        'Cache-Control': 'no-cache'
+      };
+
+      const cl = mediaRes.headers.get('content-length');
+      if (cl) headers['Content-Length'] = cl;
+
+      res.writeHead(200, headers);
       return Readable.fromWeb(mediaRes.body).pipe(res);
     }
 
@@ -127,7 +131,12 @@ const server = http.createServer(async (req, res) => {
       if (file) {
         const ext = path.extname(file);
         const mime = ext === '.html' ? 'text/html' : ext === '.css' ? 'text/css' : 'application/javascript';
-        const content = await fs.readFile(path.join(FRONTEND_DIR, file));
+        let content;
+        try {
+          content = await fs.readFile(path.join(FRONTEND_DIR, file));
+        } catch {
+          content = await fs.readFile(path.join(FRONTEND_DIR, 'frontend', file));
+        }
         res.writeHead(200, { 'Content-Type': `${mime}; charset=utf-8` });
         return res.end(content);
       }
