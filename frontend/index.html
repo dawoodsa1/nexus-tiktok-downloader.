@@ -4,12 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="theme-color" content="#f6f7f9">
-  <meta name="description" content="TikVideo — fast, clean and bilingual TikTok video downloader.">
+  <meta name="description" content="TikVideo is a bilingual web tool for retrieving TikTok video media from a TikTok URL. No account is required to use the tool.">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="googlebot" content="index,follow,max-image-preview:large">
+  <link rel="canonical" href="__CANONICAL_URL__">
+  <link rel="alternate" hreflang="x-default" href="__CANONICAL_URL__">
+  <link rel="alternate" hreflang="en" href="__CANONICAL_URL__">
+  <link rel="alternate" hreflang="ar" href="__CANONICAL_URL__">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="TikVideo — TikTok Downloader">
+  <meta property="og:description" content="A bilingual web tool for retrieving TikTok video media from a TikTok URL.">
+  <meta property="og:url" content="__CANONICAL_URL__">
+  <meta property="og:site_name" content="TikVideo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="TikVideo — TikTok Downloader">
+  <meta name="twitter:description" content="A bilingual web tool for retrieving TikTok video media from a TikTok URL.">
   <title>TikVideo — TikTok Downloader</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"WebApplication",
+    "name":"TikVideo",
+    "url":"__CANONICAL_URL__",
+    "applicationCategory":"MultimediaApplication",
+    "operatingSystem":"Any",
+    "inLanguage":["en","ar"],
+    "description":"A bilingual web tool for retrieving TikTok video media from a TikTok URL.",
+    "isAccessibleForFree":true,
+    "featureList":["TikTok URL processing","MP4 download when a valid media source is available","Arabic and English interface"]
+  }
+  </script>
 </head>
 <body>
   <div class="background-glow glow-one" aria-hidden="true"></div>
@@ -88,12 +116,41 @@
         </div>
       </div>
     </section>
+
+    <section class="seo-content" aria-labelledby="about-tool-title">
+      <div class="content-card">
+        <h2 id="about-tool-title" data-i18n="aboutTitle">A simple TikTok video retrieval tool</h2>
+        <p data-i18n="aboutText">TikVideo is a web utility that accepts a TikTok URL, retrieves available video information from its media sources, and presents an available MP4 download option. The service does not require an account.</p>
+        <div class="info-grid">
+          <article><h3 data-i18n="howTitle">How it works</h3><p data-i18n="howText">Paste a supported TikTok URL, start the request, review the returned video information, then use the available download option.</p></article>
+          <article><h3 data-i18n="privacyTitle">Privacy by design</h3><p data-i18n="privacyText">The site has no user account system. The selected language is stored locally in the browser, while short-lived service tokens are used for API requests.</p></article>
+          <article><h3 data-i18n="copyrightTitle">Respect copyright</h3><p data-i18n="copyrightText">Only retrieve or download material you are legally entitled to access or use. Rights holders can request review or removal through the site's copyright process.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="faq-section" aria-labelledby="faq-title">
+      <div class="content-card">
+        <h2 id="faq-title" data-i18n="faqTitle">Frequently asked questions</h2>
+        <details><summary data-i18n="faq1q">Do I need an account?</summary><p data-i18n="faq1a">No. The current site does not require registration or a user account to submit a supported URL.</p></details>
+        <details><summary data-i18n="faq2q">What links are supported?</summary><p data-i18n="faq2a">The service validates HTTPS links from TikTok and supported TikTok short-link hosts. Douyin links are also accepted by the current service.</p></details>
+        <details><summary data-i18n="faq3q">Is every video guaranteed to download?</summary><p data-i18n="faq3a">No. Availability depends on the source media, network conditions, and the third-party systems used to retrieve the media. The site does not promise that every URL will always work.</p></details>
+        <details><summary data-i18n="faq4q">Is TikVideo affiliated with TikTok?</summary><p data-i18n="faq4a">No. TikVideo is an independent web tool and is not presented as an official TikTok service.</p></details>
+      </div>
+    </section>
   </main>
 
   <footer class="app-footer">
     <div class="container footer-inner">
       <div class="footer-brand">TIKVIDEO <span>TIKTOK DOWNLOADER</span></div>
       <p data-i18n="footerText">A modern, fast and simple video downloading experience.</p>
+      <nav class="footer-links" aria-label="Site information">
+        <a href="/about.html" data-i18n="aboutLink">About</a>
+        <a href="/privacy.html" data-i18n="privacyLink">Privacy</a>
+        <a href="/terms.html" data-i18n="termsLink">Terms</a>
+        <a href="/copyright.html" data-i18n="copyrightLink">Copyright</a>
+        <a href="/contact.html" data-i18n="contactLink">Contact</a>
+      </nav>
     </div>
   </footer>
 
