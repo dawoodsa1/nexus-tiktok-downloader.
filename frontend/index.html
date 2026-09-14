@@ -1,237 +1,103 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <meta name="theme-color" content="#090b10">
-
+  <meta name="theme-color" content="#07090f">
+  <meta name="description" content="Nexus TikTok Downloader — fast, clean and bilingual video downloader.">
   <title>Nexus TikTok Downloader</title>
-
   <link rel="stylesheet" href="styles.css">
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet"
-  >
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-
 <body>
-
-  <div class="background-glow" aria-hidden="true"></div>
+  <div class="background-glow glow-one" aria-hidden="true"></div>
+  <div class="background-glow glow-two" aria-hidden="true"></div>
 
   <header class="app-header">
     <div class="container header-container">
-
-      <div class="logo" aria-label="Nexus TikTok Downloader">
-        <span class="logo-accent">NEXUS</span>
-        <span class="logo-sub">TIKTOK</span>
+      <div class="brand-wrap">
+        <div class="brand-mark" aria-hidden="true"><span>N</span></div>
+        <div class="logo" aria-label="Nexus TikTok Downloader">
+          <span class="logo-accent">NEXUS</span>
+          <span class="logo-sub">TIKTOK</span>
+        </div>
       </div>
-
-      <div class="badge-status" aria-label="Service status">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span>Ready</span>
+      <div class="header-actions">
+        <button type="button" id="language-btn" class="language-btn" aria-label="Switch language">العربية</button>
+        <div class="badge-status" aria-label="Service status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-i18n="ready">Ready</span>
+        </div>
       </div>
-
     </div>
   </header>
 
   <main class="container">
-
     <section class="hero-section">
+      <div class="hero-badge"><span class="spark">✦</span><span data-i18n="heroBadge">FAST • CLEAN • PRIVATE</span></div>
+      <h1 class="hero-title" data-i18n="heroTitle">Download TikTok videos with ease</h1>
+      <p class="hero-subtitle" data-i18n="heroSubtitle">Paste a TikTok link and get your video in a clean, simple experience.</p>
 
-      <h1 class="hero-title">
-        Direct MP4 Video Retrieval
-      </h1>
-
-      <p class="hero-subtitle">
-        Fast direct media stream resolver.
-      </p>
-
-      <form
-        id="extract-form"
-        class="search-box-card"
-        novalidate
-      >
-
+      <form id="extract-form" class="search-box-card" novalidate>
         <div class="input-wrapper">
-
-          <input
-            type="url"
-            id="url-input"
-            name="url"
-            placeholder="Paste TikTok URL..."
-            autocomplete="off"
-            inputmode="url"
-            maxlength="2048"
-            required
-            aria-label="TikTok video URL"
-          >
-
+          <span class="url-icon" aria-hidden="true">↗</span>
+          <input type="url" id="url-input" name="url" placeholder="Paste TikTok URL..." autocomplete="off" inputmode="url" maxlength="2048" required aria-label="TikTok video URL">
           <div class="input-actions">
-
-            <button
-              type="button"
-              id="paste-btn"
-              class="btn-ghost"
-            >
-              Paste
-            </button>
-
-            <button
-              type="button"
-              id="clear-btn"
-              class="btn-ghost"
-            >
-              Clear
-            </button>
-
+            <button type="button" id="paste-btn" class="btn-ghost" data-i18n="paste">Paste</button>
+            <button type="button" id="clear-btn" class="btn-ghost" data-i18n="clear">Clear</button>
           </div>
-
         </div>
-
-        <button
-          type="submit"
-          id="submit-btn"
-          class="btn-primary"
-        >
-          <span class="btn-text">Get Video</span>
+        <button type="submit" id="submit-btn" class="btn-primary">
+          <span class="btn-icon" aria-hidden="true">↓</span>
+          <span class="btn-text" data-i18n="getVideo">Get Video</span>
         </button>
-
       </form>
 
-      <div
-        id="status-card"
-        class="status-card hidden"
-        role="status"
-        aria-live="polite"
-      >
-        <span id="status-text">
-          Retrieving video...
-        </span>
+      <div class="trust-row">
+        <span><i>✓</i><span data-i18n="trust1">No registration</span></span>
+        <span><i>✓</i><span data-i18n="trust2">Fast processing</span></span>
+        <span><i>✓</i><span data-i18n="trust3">Mobile friendly</span></span>
       </div>
 
-      <div
-        id="error-card"
-        class="error-card hidden"
-        role="alert"
-        aria-live="assertive"
-      >
-        <p id="error-message"></p>
-      </div>
-
+      <div id="status-card" class="status-card hidden" role="status" aria-live="polite"><span id="status-text">Retrieving video...</span></div>
+      <div id="error-card" class="error-card hidden" role="alert" aria-live="assertive"><p id="error-message"></p></div>
     </section>
 
-
-    <section
-      id="result-section"
-      class="result-section hidden"
-      aria-label="Video result"
-    >
-
+    <section id="result-section" class="result-section hidden" aria-label="Video result">
+      <div class="result-heading"><span class="result-line"></span><span data-i18n="resultTitle">Your video is ready</span><span class="result-line"></span></div>
       <div class="media-card">
-
         <div class="media-thumbnail-container">
-
-          <img
-            id="res-thumbnail"
-            src=""
-            alt="Video thumbnail"
-            loading="lazy"
-            referrerpolicy="no-referrer"
-          >
-
-          <span
-            id="res-duration"
-            class="duration-badge"
-            aria-label="Video duration"
-          ></span>
-
+          <img id="res-thumbnail" src="" alt="Video thumbnail" loading="lazy" referrerpolicy="no-referrer">
+          <span id="res-duration" class="duration-badge" aria-label="Video duration"></span>
+          <div class="thumbnail-overlay" aria-hidden="true"></div>
         </div>
-
-
         <div class="media-details">
-
           <div class="author-block">
-
-            <img
-              id="res-avatar"
-              class="author-avatar"
-              src=""
-              alt="Creator avatar"
-              loading="lazy"
-              referrerpolicy="no-referrer"
-            >
-
+            <img id="res-avatar" class="author-avatar" src="" alt="Creator avatar" loading="lazy" referrerpolicy="no-referrer">
             <div class="author-meta">
-
-              <span
-                id="res-author-name"
-                class="author-name"
-              >
-                Creator
-              </span>
-
-              <span
-                id="res-author-user"
-                class="author-user"
-              >
-                @user
-              </span>
-
+              <span id="res-author-name" class="author-name">Creator</span>
+              <span id="res-author-user" class="author-user">@user</span>
             </div>
-
           </div>
-
-
-          <h2
-            id="res-title"
-            class="video-title"
-          >
-            Video Description
-          </h2>
-
-
+          <h2 id="res-title" class="video-title">Video Description</h2>
           <div class="download-actions">
-
-            <a
-              id="download-standard-btn"
-              href="#"
-              class="btn-download"
-              rel="nofollow"
-            >
-              Download MP4
-            </a>
-
-            <a
-              id="download-hd-btn"
-              href="#"
-              class="btn-download btn-hd hidden"
-              rel="nofollow"
-            >
-              Download HD MP4
-            </a>
-
+            <a id="download-standard-btn" href="#" class="btn-download" rel="nofollow"><span>↓</span><span data-i18n="downloadMp4">Download MP4</span></a>
+            <a id="download-hd-btn" href="#" class="btn-download btn-hd hidden" rel="nofollow"><span>✦</span><span data-i18n="downloadHd">Download HD MP4</span></a>
           </div>
-
         </div>
-
       </div>
-
     </section>
-
   </main>
 
   <footer class="app-footer">
-    <div class="container">
-      <p>
-        Nexus TikTok Downloader
-      </p>
+    <div class="container footer-inner">
+      <div class="footer-brand">NEXUS <span>TIKTOK DOWNLOADER</span></div>
+      <p data-i18n="footerText">A modern, fast and simple video downloading experience.</p>
     </div>
   </footer>
 
   <script src="app.js" defer></script>
-
 </body>
 </html>
