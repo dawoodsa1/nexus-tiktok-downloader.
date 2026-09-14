@@ -1,11 +1,16 @@
 {
   "name": "nexus-tiktok-downloader",
-  "version": "1.0.0",
-  "description": "Nexus TikTok Downloader",
-  "main": "backend/server.js",
+  "version": "1.1.0",
+  "description": "Nexus TikTok Downloader - direct media retrieval service",
+  "private": true,
   "type": "module",
+  "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "dotenv": "^16.4.5"
