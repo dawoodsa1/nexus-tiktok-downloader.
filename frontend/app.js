@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const translations = {
     en: {
-      ready:'Ready', heroBadge:'FAST • CLEAN • PRIVATE', heroTitle:'Download TikTok videos with ease', heroSubtitle:'Paste a TikTok link and get your video in a clean, simple experience.', paste:'Paste', clear:'Clear', getVideo:'Get Video', retrieving:'Retrieving...', trust1:'No registration', trust2:'Fast processing', trust3:'Mobile friendly', resultTitle:'Your video is ready', downloadMp4:'Download MP4', downloadHd:'Download HD MP4', footerText:'A modern, fast and simple video downloading experience.', placeholder:'Paste TikTok URL...', creator:'Creator', user:'@user', description:'Video Description', clipboardUnavailable:'Clipboard access is not available.', clipboardEmpty:'Clipboard is empty.', clipboardManual:'Unable to read the clipboard. Please paste the TikTok URL manually.', enterUrl:'Please enter a TikTok URL.', tooLong:'The URL is too long.', invalidUrl:'Please enter a valid TikTok URL.', session:'Creating secure session...', retrievingInfo:'Retrieving video information...', serverToken:'The server did not return a valid session token.', unexpected:`Server returned an unexpected response`, invalidJson:'The server returned invalid JSON.', requestFailed:'Request failed', noVideo:'The video could not be retrieved.', noDownload:'The server did not provide a download URL.', readyStatus:'Video ready.', generic:'Unable to retrieve the video. Please try again.'
+      ready:'Ready', heroBadge:'FAST • CLEAN • PRIVATE', heroTitle:'Download TikTok videos with ease', heroSubtitle:'Paste a TikTok link and get your video in a clean, simple experience.', paste:'Paste', clear:'Clear', getVideo:'Get Video', retrieving:'Retrieving...', trust1:'No registration', trust2:'Fast processing', trust3:'Mobile friendly', resultTitle:'Your video is ready', downloadMp4:'Download MP4', downloadHd:'Download HD MP4', footerText:'A modern, fast and simple video downloading experience.', placeholder:'Paste TikTok URL...', creator:'Creator', user:'@user', description:'Video Description', clipboardUnavailable:'Clipboard access is not available.', clipboardEmpty:'Clipboard is empty.', clipboardManual:'Unable to read the clipboard. Please paste the TikTok URL manually.', enterUrl:'Please enter a TikTok URL.', tooLong:'The URL is too long.', invalidUrl:'Please enter a valid TikTok URL.', session:'Creating secure session...', retrievingInfo:'Retrieving video information...', serverToken:'The server did not return a valid session token.', unexpected:'Server returned an unexpected response', invalidJson:'The server returned invalid JSON.', requestFailed:'Request failed', noVideo:'The video could not be retrieved.', noDownload:'The server did not provide a download URL.', readyStatus:'Video ready.', generic:'Unable to retrieve the video. Please try again.'
     },
     ar: {
       ready:'جاهز', heroBadge:'سريع • نظيف • خاص', heroTitle:'حمّل فيديوهات تيك توك بسهولة', heroSubtitle:'الصق رابط تيك توك واحصل على الفيديو في تجربة نظيفة وسريعة.', paste:'لصق', clear:'مسح', getVideo:'جلب الفيديو', retrieving:'جارٍ الجلب...', trust1:'بدون تسجيل', trust2:'معالجة سريعة', trust3:'متوافق مع الهاتف', resultTitle:'الفيديو جاهز', downloadMp4:'تحميل MP4', downloadHd:'تحميل HD MP4', footerText:'تجربة حديثة وسريعة وبسيطة لتحميل الفيديوهات.', placeholder:'الصق رابط تيك توك هنا...', creator:'الناشر', user:'@مستخدم', description:'وصف الفيديو', clipboardUnavailable:'الوصول إلى الحافظة غير متاح.', clipboardEmpty:'الحافظة فارغة.', clipboardManual:'تعذر قراءة الحافظة. الصق رابط تيك توك يدويًا.', enterUrl:'يرجى إدخال رابط تيك توك.', tooLong:'الرابط طويل جدًا.', invalidUrl:'يرجى إدخال رابط تيك توك صالح.', session:'جارٍ إنشاء جلسة آمنة...', retrievingInfo:'جارٍ جلب معلومات الفيديو...', serverToken:'لم يُرجع الخادم رمز جلسة صالحًا.', unexpected:'أعاد الخادم استجابة غير متوقعة', invalidJson:'أعاد الخادم بيانات JSON غير صالحة.', requestFailed:'فشل الطلب', noVideo:'تعذر جلب الفيديو.', noDownload:'لم يُرجع الخادم رابط تحميل.', readyStatus:'الفيديو جاهز.', generic:'تعذر جلب الفيديو. يرجى المحاولة مرة أخرى.'
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     urlInput.placeholder = t('placeholder');
     urlInput.setAttribute('aria-label', isAr ? 'رابط فيديو تيك توك' : 'TikTok video URL');
     document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-    document.title = isAr ? 'Nexus TikTok Downloader — تحميل فيديوهات تيك توك' : 'Nexus TikTok Downloader';
+    document.title = isAr ? 'TikVideo — تحميل فيديوهات تيك توك' : 'TikVideo — TikTok Downloader';
     if (!resultSection.classList.contains('hidden')) {
       downloadStd.setAttribute('aria-label', t('downloadMp4'));
       if (!downloadHd.classList.contains('hidden')) downloadHd.setAttribute('aria-label', t('downloadHd'));
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
       resAuthorName.textContent = author.name || t('creator');
       resAuthorUser.textContent = `@${author.username || t('user').replace(/^@/,'')}`;
       if (author.avatar) resAvatar.src = author.avatar; else resAvatar.removeAttribute('src');
-      resTitle.textContent = data.title || 'TikTok Video';
+      resTitle.textContent = data.title || (lang === 'ar' ? 'فيديو تيك توك' : 'TikTok Video');
 
       downloadStd.href = data.downloadUrl;
       downloadStd.setAttribute('aria-label', t('downloadMp4'));
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus(t('readyStatus'));
       setTimeout(hideStatus, 1200);
     } catch (error) {
-      console.error('Nexus extraction error:', error);
+      console.error('TikVideo extraction error:', error);
       hideStatus();
       showError(error?.message || t('generic'));
     } finally { setLoading(false); }
