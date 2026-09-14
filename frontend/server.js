@@ -213,7 +213,7 @@ function sendError(res,statusCode,message){sendJson(res,statusCode,{success:fals
 const FILE_MAP = {
   '/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/legal.css':'legal.css',
   '/about.html':'about.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/copyright.html':'copyright.html','/contact.html':'contact.html',
-  '/googlec0345ce99ca76489.html':'googlec0345ce99ca76489.html'
+  '/googlec0345ce99ca76489.html':'googlec0345ce99ca76489.html','/sitemap.xml':'sitemap.xml'
 };
 const INDEXABLE_PATHS = ['','/about.html','/privacy.html','/terms.html','/copyright.html','/contact.html'];
 
@@ -232,7 +232,7 @@ async function serveFrontend(pathname,res,req){
   if (!file) return false;
   let content = await fs.readFile(path.join(FRONTEND_DIR,file),'utf8');
   const ext = path.extname(file);
-  const mime = ext === '.html' ? 'text/html' : ext === '.css' ? 'text/css' : 'application/javascript';
+  const mime = ext === '.html' ? 'text/html' : ext === '.css' ? 'text/css' : ext === '.xml' ? 'application/xml' : 'application/javascript';
   if (ext === '.html') content = applyCanonicalPlaceholders(content,getPublicOrigin(req));
   res.writeHead(200,{'Content-Type':`${mime}; charset=utf-8`,'X-Content-Type-Options':'nosniff','Cache-Control':ext === '.html' ? 'public, max-age=300' : 'public, max-age=3600'});
   res.end(content);
@@ -257,7 +257,7 @@ const server = http.createServer(async (req,res) => {
     const host = req.headers.host || `localhost:${PORT}`;
     const parsed = new URL(req.url || '/',`http://${host}`);
     if (req.method === 'GET' && parsed.pathname === '/robots.txt') return sendRobots(req,res);
-    if (req.method === 'GET' && parsed.pathname === '/sitemap.xml') return sendSitemap(req,res);
+    if (req.method === 'GET' && parsed.pathname === '/sitemap.xml') return serveFrontend(parsed.pathname,res,req);
     if (req.method === 'POST' && parsed.pathname === '/api/token') return sendJson(res,200,{success:true,data:{token:createToken({session:crypto.randomUUID()},SESSION_TOKEN_TTL)}});
     if (req.method === 'GET' && parsed.pathname === '/api/extract') {
       const auth=req.headers.authorization || ''; verifyToken(auth.replace(/^Bearer\s+/i,''));
