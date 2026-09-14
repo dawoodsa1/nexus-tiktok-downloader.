@@ -1,1 +1,12 @@
-
+{
+  "name": "nexus-tiktok-downloader",
+  "version": "1.0.0",
+  "main": "backend/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
