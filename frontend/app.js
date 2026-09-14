@@ -37,7 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAr = lang === 'ar';
     document.documentElement.lang = lang;
     document.documentElement.dir = isAr ? 'rtl' : 'ltr';
-    document.body.dir = isAr ? 'rtl' : 'ltr';
+    // Keep the page layout anchored to the English/LTR geometry.
+    // Arabic text is localized without mirroring/reordering controls.
+    document.body.dir = 'ltr';
     languageBtn.textContent = isAr ? 'English' : 'العربية';
     languageBtn.setAttribute('aria-label', isAr ? 'Switch to English' : 'التبديل إلى العربية');
     urlInput.placeholder = t('placeholder');
