@@ -187,7 +187,9 @@ export default {
       if(request.method==='GET'&&url.pathname==='/api/download'){
         const payload=await verifyToken(url.searchParams.get('token'),secret);
         if(payload.scope!=='download') return error('Invalid download token.',401);
-        const mediaUrl=url.searchParams.get('quality')==='hd'?(payload.hdMediaUrl||payload.downloadUrl||payload.mediaUrl):(payload.downloadUrl||payload.mediaUrl);
+        const mediaUrl=url.searchParams.get('quality')==='hd'
+          ?(payload.hdMediaUrl||payload.mediaUrl||payload.downloadUrl)
+          :(payload.mediaUrl||payload.downloadUrl);
         if(!mediaUrl) return error('No media URL.',404);
         const upstream=await fetchMedia(mediaUrl,payload.mediaHeaders||{},request);
         if(!upstream) return error('Unable to retrieve media.',502);
