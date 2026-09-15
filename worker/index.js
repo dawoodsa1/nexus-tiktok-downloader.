@@ -3,7 +3,6 @@ const DOWNLOAD_TOKEN_TTL = 300;
 const MAX_URL_LENGTH = 2048;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const ALLOWED_TIKTOK_HOSTS = new Set(['tiktok.com','www.tiktok.com','m.tiktok.com','vm.tiktok.com','vt.tiktok.com','douyin.com','www.douyin.com']);
-const INDEXABLE_PATHS = ['','/about.html','/privacy.html','/terms.html','/copyright.html','/contact.html'];
 
 function b64url(bytes) {
   let binary='';
@@ -146,14 +145,6 @@ async function fetchMedia(mediaUrl,mediaHeaders,request){
     return r;
   }catch{return null}
 }
-function xmlEscape(value){return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&apos;')}
-function getOrigin(request){return new URL(request.url).origin.replace(/\/$/,'')}
-function sitemapResponse(request){
-  const origin=getOrigin(request);
-  const urls=INDEXABLE_PATHS.map(path=>`  <url><loc>${xmlEscape(origin+(path||'/'))}</loc></url>`).join('\n');
-  const body=`<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n${urls}\n</urlset>\n`;
-  return new Response(body,{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
-}
 async function assetResponse(request,env){
   const response=await env.ASSETS.fetch(request);
   const contentType=response.headers.get('content-type')||'';
@@ -163,6 +154,7 @@ async function assetResponse(request,env){
   const headers=new Headers(response.headers); headers.set('Cache-Control','no-store');
   return new Response(content.replaceAll('__CANONICAL_URL__',getOrigin(request)),{status:response.status,statusText:response.statusText,headers});
 }
+function getOrigin(request){return new URL(request.url).origin.replace(/\/$/,'')}
 
 export default {
   async fetch(request,env){
@@ -174,7 +166,8 @@ export default {
       if(request.method==='GET'&&url.pathname==='/api/extract'){
         const auth=request.headers.get('Authorization')||'';
         if(!auth.startsWith('Bearer ')) return error('Authorization required.',401);
-        await verifyToken(auth.slice(7),secret);
+        const tokenPayload=await verifyToken(auth.slice(7),secret);
+        if(tokenPayload.scope!=='extract') return error('Invalid extraction token.',401);
         const sourceUrl=validateTikTokUrl(url.searchParams.get('url'));
         let data;
         try{data=await extractTikTok(sourceUrl)}catch(primary){
@@ -197,7 +190,6 @@ export default {
         return mediaResponse(upstream);
       }
       if(url.pathname==='/robots.txt') return new Response(`User-agent: *\nAllow: /\nSitemap: ${getOrigin(request)}/sitemap.xml\n`,{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'}});
-      if(url.pathname==='/sitemap.xml') return sitemapResponse(request);
       return assetResponse(request,env);
     }catch(e){return error(e?.message||'Internal server error.',500)}
   }
