@@ -4,10 +4,10 @@
   "description": "Nexus TikTok Downloader - direct media retrieval service",
   "private": true,
   "type": "module",
-  "main": "backend/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node backend/server.js",
-    "dev": "node --watch backend/server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "engines": {
     "node": ">=20"
