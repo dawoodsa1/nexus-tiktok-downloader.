@@ -7,6 +7,14 @@
   "assets": {
     "directory": "./frontend",
     "binding": "ASSETS",
-    "run_worker_first": ["/robots.txt"]
+    "run_worker_first": [
+      "/",
+      "/robots.txt",
+      "/about.html",
+      "/privacy.html",
+      "/terms.html",
+      "/copyright.html",
+      "/contact.html"
+    ]
   }
 }
