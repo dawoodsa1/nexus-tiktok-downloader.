@@ -68,6 +68,12 @@ ${entries.map(([path, title]) => `  <entry>
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const isOldWorkerHost = url.hostname === 'tikvideo.tikvid.workers.dev';
+    const isApiPath = url.pathname === '/api' || url.pathname.startsWith('/api/');
+
+    if ((request.method === 'GET' || request.method === 'HEAD') && isOldWorkerHost && !isApiPath) {
+      return Response.redirect(`https://tikto.video${url.pathname}${url.search}`, 301);
+    }
 
     if (request.method === 'GET' && url.pathname === '/robots.txt') {
       return robotsResponse(request);
