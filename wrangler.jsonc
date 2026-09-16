@@ -6,18 +6,6 @@
   "workers_dev": true,
   "assets": {
     "directory": "./frontend",
-    "binding": "ASSETS",
-    "run_worker_first": [
-      "/",
-      "/ar/",
-      "/favicon.ico",
-      "/favicon.png",
-      "/robots.txt",
-      "/about.html",
-      "/privacy.html",
-      "/terms.html",
-      "/copyright.html",
-      "/contact.html"
-    ]
+    "binding": "ASSETS"
   }
 }
