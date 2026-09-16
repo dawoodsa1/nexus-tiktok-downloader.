@@ -9,6 +9,7 @@
     "binding": "ASSETS",
     "run_worker_first": [
       "/",
+      "/ar/",
       "/robots.txt",
       "/about.html",
       "/privacy.html",
