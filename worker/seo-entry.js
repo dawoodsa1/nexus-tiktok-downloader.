@@ -75,6 +75,19 @@ export default {
       return Response.redirect(`https://tikto.video${url.pathname}${url.search}`, 301);
     }
 
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/favicon.png' || url.pathname === '/favicon.ico')) {
+      const response = await env.ASSETS.fetch(request);
+      const headers = new Headers(response.headers);
+      if (url.pathname === '/favicon.png') headers.set('Content-Type', 'image/png');
+      if (url.pathname === '/favicon.ico') headers.set('Content-Type', 'image/x-icon');
+      headers.set('Cache-Control', 'public, max-age=86400, must-revalidate');
+      return new Response(request.method === 'HEAD' ? null : response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+      });
+    }
+
     if (request.method === 'GET' && url.pathname === '/robots.txt') {
       return robotsResponse(request);
     }
