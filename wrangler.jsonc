@@ -4,6 +4,16 @@
   "main": "worker/seo-entry.js",
   "compatibility_date": "2026-09-15",
   "workers_dev": false,
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "900001",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ],
   "assets": {
     "directory": "./frontend",
     "binding": "ASSETS"
