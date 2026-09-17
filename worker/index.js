@@ -1,6 +1,7 @@
 const SESSION_TOKEN_TTL = 180;
 const DOWNLOAD_TOKEN_TTL = 300;
 const MAX_URL_LENGTH = 2048;
+const MAX_MEDIA_REDIRECTS = 3;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const ALLOWED_TIKTOK_HOSTS = new Set(['tiktok.com','www.tiktok.com','m.tiktok.com','vm.tiktok.com','vt.tiktok.com','douyin.com','www.douyin.com']);
 
@@ -44,15 +45,28 @@ function validateTikTokUrl(rawUrl){
   if(!ALLOWED_TIKTOK_HOSTS.has(host)) throw new Error('Only TikTok URLs are allowed.');
   return parsed.toString();
 }
+function isPrivateIpv4(host){
+  if(!/^\d+(?:\.\d+){3}$/.test(host)) return false;
+  const [a,b,c,d]=host.split('.').map(Number);
+  if([a,b,c,d].some(v=>!Number.isInteger(v)||v<0||v>255)) return true;
+  return a===0 || a===10 || a===127 || (a===100&&b>=64&&b<=127) || (a===169&&b===254) || (a===172&&b>=16&&b<=31) || (a===192&&b===0&&c===0) || (a===192&&b===0&&c===2) || (a===192&&b===168) || (a===198&&b>=18&&b<=19) || (a===198&&b===51&&c===100) || (a===203&&b===0&&c===113) || a>=224;
+}
+function isPrivateIpv6(host){
+  const value=host.toLowerCase().replace(/^\[/,'').replace(/\]$/,'');
+  if(!value.includes(':')) return false;
+  if(value==='::'||value==='::1') return true;
+  if(value.startsWith('fe8')||value.startsWith('fe9')||value.startsWith('fea')||value.startsWith('feb')) return true;
+  if(value.startsWith('fc')||value.startsWith('fd')) return true;
+  const mapped=value.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  return !!mapped && isPrivateIpv4(mapped[1]);
+}
 function validateMediaUrl(rawUrl){
+  if(typeof rawUrl!=='string'||!rawUrl.trim()) throw new Error('Invalid media URL.');
+  if(rawUrl.length>MAX_URL_LENGTH) throw new Error('Media URL is too long.');
   let parsed; try{parsed=new URL(rawUrl)}catch{throw new Error('Invalid media URL.')}
   if(parsed.protocol!=='https:') throw new Error('Only HTTPS media URLs are allowed.');
   const host=parsed.hostname.toLowerCase().replace(/\.$/,'');
-  if(!host || host==='localhost' || host==='localhost.localdomain' || host==='0.0.0.0' || host==='::1' || host.endsWith('.localhost') || host.endsWith('.local')) throw new Error('Unsafe media host.');
-  if(/^\d+(?:\.\d+){3}$/.test(host)){
-    const [a,b,c,d]=host.split('.').map(Number);
-    if(a===10 || a===127 || (a===169&&b===254) || (a===172&&b>=16&&b<=31) || (a===192&&b===168) || a===0 || a>=224) throw new Error('Unsafe media host.');
-  }
+  if(!host || host==='localhost' || host==='localhost.localdomain' || host==='0.0.0.0' || host.endsWith('.localhost') || host.endsWith('.local') || isPrivateIpv4(host) || isPrivateIpv6(host)) throw new Error('Unsafe media host.');
   return parsed.toString();
 }
 function decodeEscapedString(value){
@@ -134,16 +148,29 @@ function mediaResponse(response){
   return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
 async function fetchMedia(mediaUrl,mediaHeaders,request){
-  const safeUrl=validateMediaUrl(mediaUrl);
+  let currentUrl=validateMediaUrl(mediaUrl);
   const headers={'User-Agent':mediaHeaders?.['User-Agent']||USER_AGENT,Accept:'*/*',Referer:mediaHeaders?.Referer||'https://www.tiktok.com/',Origin:'https://www.tiktok.com','Accept-Encoding':'identity'};
   const range=request.headers.get('Range'); if(range)headers.Range=range;
   if(mediaHeaders?.Cookie)headers.Cookie=mediaHeaders.Cookie;
   try{
-    const r=await fetch(safeUrl,{redirect:'follow',headers,signal:AbortSignal.timeout(60000)});
-    if(!r.ok && r.status!==206) return r;
-    if(r.body) return r;
-    return r;
-  }catch{return null}
+    for(let redirectCount=0;redirectCount<=MAX_MEDIA_REDIRECTS;redirectCount++){
+      const r=await fetch(currentUrl,{redirect:'manual',headers,signal:AbortSignal.timeout(60000)});
+      if(r.status>=300&&r.status<400){
+        const location=r.headers.get('Location');
+        if(!location) return r;
+        if(redirectCount===MAX_MEDIA_REDIRECTS) throw new Error('Too many media redirects.');
+        let nextUrl; try{nextUrl=new URL(location,currentUrl).toString()}catch{throw new Error('Invalid media redirect.')}
+        currentUrl=validateMediaUrl(nextUrl);
+        continue;
+      }
+      if(!r.ok && r.status!==206) return r;
+      return r;
+    }
+  }catch(error){
+    if(error?.message==='Too many media redirects.'||error?.message==='Invalid media redirect.'||error?.message==='Unsafe media host.') throw error;
+    return null;
+  }
+  return null;
 }
 async function assetResponse(request,env){
   const response=await env.ASSETS.fetch(request);
