@@ -3,7 +3,7 @@
   "name": "tikvideo",
   "main": "worker/seo-entry.js",
   "compatibility_date": "2026-09-15",
-  "workers_dev": true,
+  "workers_dev": false,
   "assets": {
     "directory": "./frontend",
     "binding": "ASSETS"
