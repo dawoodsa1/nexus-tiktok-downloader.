@@ -34,6 +34,17 @@ function atomResponse(request) {
   return new Response(body, { status: 200, headers: { 'Content-Type': 'application/atom+xml; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 
+function getClientKey(request, pathname) {
+  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 'unknown';
+  return `${pathname}:${ip}`;
+}
+
+async function enforceApiRateLimit(request, env, pathname) {
+  if (!env.RATE_LIMITER) return true;
+  const result = await env.RATE_LIMITER.limit({ key: getClientKey(request, pathname) });
+  return result.success;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -50,6 +61,14 @@ export default {
     }
     if (request.method === 'GET' && url.pathname === '/robots.txt') return applySecurityHeaders(robotsResponse(request));
     if (request.method === 'GET' && url.pathname === '/atom.xml') return applySecurityHeaders(atomResponse(request));
+    if (isApiPath) {
+      try {
+        const allowed = await enforceApiRateLimit(request, env, url.pathname);
+        if (!allowed) return applySecurityHeaders(new Response(JSON.stringify({ success:false, error:{ message:'Too many requests. Please try again later.' } }), { status:429, headers:{ 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store', 'Retry-After':'60', 'X-Content-Type-Options':'nosniff' } }));
+      } catch {
+        return applySecurityHeaders(new Response(JSON.stringify({ success:false, error:{ message:'Rate limiting service unavailable.' } }), { status:503, headers:{ 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff' } }));
+      }
+    }
     const response = await app.fetch(request, env, ctx);
     return applySecurityHeaders(response);
   }
