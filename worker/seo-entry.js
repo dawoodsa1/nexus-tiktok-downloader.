@@ -28,9 +28,9 @@ function xmlEscape(value) {
 
 function atomResponse(request) {
   const origin = originOf(request);
-  const now = new Date().toISOString();
+  const updated = '2026-09-17T20:06:40Z';
   const entries = [['/', 'TikVideo - TikTok Downloader'], ['/about.html', 'About TikVideo'], ['/privacy.html', 'Privacy Policy'], ['/terms.html', 'Terms of Service'], ['/copyright.html', 'Copyright'], ['/contact.html', 'Contact']];
-  const body = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\">\n  <id>${xmlEscape(origin)}/</id>\n  <title>TikVideo - TikTok Downloader</title>\n  <updated>${now}</updated>\n  <link href=\"${xmlEscape(origin)}/\" rel=\"alternate\" type=\"text/html\" />\n${entries.map(([path, title]) => `  <entry>\n    <id>${xmlEscape(origin + (path || '/'))}</id>\n    <title>${xmlEscape(title)}</title>\n    <updated>${now}</updated>\n    <link href=\"${xmlEscape(origin + (path || '/'))}\" rel=\"alternate\" type=\"text/html\" />\n  </entry>`).join('\\n')}\n</feed>\n`;
+  const body = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\">\n  <id>${xmlEscape(origin)}/</id>\n  <title>TikVideo - TikTok Downloader</title>\n  <updated>${updated}</updated>\n  <link href=\"${xmlEscape(origin)}/\" rel=\"alternate\" type=\"text/html\" />\n${entries.map(([path, title]) => `  <entry>\n    <id>${xmlEscape(origin + (path || '/'))}</id>\n    <title>${xmlEscape(title)}</title>\n    <updated>${updated}</updated>\n    <link href=\"${xmlEscape(origin + (path || '/'))}\" rel=\"alternate\" type=\"text/html\" />\n  </entry>`).join('\\n')}\n</feed>\n`;
   return new Response(body, { status: 200, headers: { 'Content-Type': 'application/atom+xml; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 
