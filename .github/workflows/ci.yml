@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check worker/index.js
+          node --check worker/seo-entry.js
+          node --check frontend/app.js
+          node --check frontend/server.js
+
+      - name: Validate Wrangler configuration
+        run: npx wrangler deploy --dry-run
+
+      - name: Validate sitemap XML
+        run: python - <<'PY'
+          import xml.etree.ElementTree as ET
+          ET.parse('frontend/sitemap.xml')
+          print('sitemap.xml: valid XML')
+          PY
