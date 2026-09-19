@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let lang = isArabicPath ? 'ar' : (localStorage.getItem('nexus-language') || 'en');
   if(!translations[lang]) lang='en';
   const t=key=>translations[lang][key] || translations.en[key] || key;
-  function applyLanguage(){const isAr=lang==='ar';document.documentElement.lang=lang;document.documentElement.dir=isAr?'rtl':'ltr';document.body.dir=isAr?'rtl':'ltr';languageBtn.textContent=isAr?'English':'العربية';languageBtn.setAttribute('aria-label',isAr?'Switch to English':'التبديل إلى العربية');urlInput.placeholder=t('placeholder');urlInput.setAttribute('aria-label',isAr?'رابط فيديو أو صورة من TikTok':'TikTok video or photo URL');document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n)});document.title=isAr?'تحميل فيديوهات وصور تيك توك بدون علامة مائية | TikVideo':'TikTok Video & Photo Downloader Without Watermark | TikVideo';const desc=document.querySelector('meta[name="description"]');if(desc)desc.content=isAr?'حمّل فيديوهات وصور TikTok المتاحة أونلاين. الصق رابط المنشور واستخدم خيار التحميل المتاح، بدون تسجيل أو تثبيت تطبيق.':'Download available TikTok videos and photos online. Paste a TikTok post URL and use the available download option, with no registration or app installation.';if(!resultSection.classList.contains('hidden')){downloadStd.setAttribute('aria-label',t('downloadMp4'));if(!downloadHd.classList.contains('hidden'))downloadHd.setAttribute('aria-label',t('downloadHd'))}}
+  function applyLanguage(){const isAr=lang==='ar';document.documentElement.lang=lang;document.documentElement.dir=isAr?'rtl':'ltr';document.body.dir=isAr?'rtl':'ltr';languageBtn.textContent=isAr?'English':'العربية';languageBtn.setAttribute('aria-label',isAr?'Switch to English':'التبديل إلى العربية');urlInput.placeholder=t('placeholder');urlInput.setAttribute('aria-label',isAr?'رابط فيديو أو صورة من TikTok':'TikTok video or photo URL');document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n)});document.title=isAr?'تحميل فيديوهات وصور تيك توك بدون علامة مائية | TikVideo':'TikTok Video & Photo Downloader Without Watermark | TikVideo';const desc=document.querySelector('meta[name="description"]');if(desc)desc.content=isAr?'حمّل فيديوهات وصور TikTok المتاحة أونلاين. الصق رابط المنشور واستخدم خيار التحميل المتاح، بدون تسجيل أو تثبيت تطبيق.':'Download available TikTok videos and photos online. Paste a TikTok post URL and use the available download option, with no registration or app installation.';if(!resultSection.classList.contains('hidden')){if(mediaCard?.classList.contains('photo-result')){const count=photoGallery?.querySelectorAll('.photo-item').length||1;setResultTitle(`${t('photosReady')} (${count})`);downloadStd.setAttribute('aria-label',t('downloadImage'))}else{setResultTitle(t('resultTitle'));downloadStd.setAttribute('aria-label',t('downloadMp4'));if(!downloadHd.classList.contains('hidden'))downloadHd.setAttribute('aria-label',t('downloadHd'))}}}
   languageBtn.addEventListener('click',()=>{lang=lang==='en'?'ar':'en';localStorage.setItem('nexus-language',lang);location.href=lang==='ar'?'/ar/':'/'});
   function showError(message){errorMessage.textContent=message || t('generic');errorCard.classList.remove('hidden')} function hideError(){errorCard.classList.add('hidden');errorMessage.textContent=''} function showStatus(message){statusText.textContent=message;statusCard.classList.remove('hidden')} function hideStatus(){statusCard.classList.add('hidden')}
   function resetResult(){
@@ -40,8 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if(author.avatar)resAvatar.src=author.avatar;else resAvatar.removeAttribute('src');
   }
   function setResultTitle(text){const el=document.querySelector('.result-heading [data-i18n="resultTitle"]');if(el)el.textContent=text}
-  function getImageFilename(index){
-    return `tikvideo-image-${String(index+1).padStart(2,'0')}.jpg`;
+  function getImageFilename(index,url){
+    let extension='jpg';
+    try{const pathname=new URL(url).pathname;const match=pathname.match(/\.(jpe?g|png|webp|avif)$/i);if(match)extension=match[1].toLowerCase()}catch{}
+    return `tikvideo-image-${String(index+1).padStart(2,'0')}.${extension}`;
   }
   function renderPhotoResult(data){
     const images=Array.isArray(data.images)?data.images.filter(Boolean):[];
@@ -56,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setAuthor(data);
     resTitle.textContent=data.title || (lang==='ar'?'منشور صور TikTok':'TikTok photo post');
     downloadStd.href=downloads[0];
-    downloadStd.setAttribute('download',getImageFilename(0));
+    downloadStd.setAttribute('download',getImageFilename(0,images[0]));
     downloadStd.classList.remove('hidden');
     const standardLabel=downloadStd.querySelector('[data-i18n]');
     if(standardLabel)standardLabel.textContent=t('downloadImage');
@@ -69,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const link=document.createElement('a');
         link.className='photo-item';
         link.href=downloads[i]||images[i];
-        link.setAttribute('download',getImageFilename(i));
+        link.setAttribute('download',getImageFilename(i,images[i]));
         link.setAttribute('rel','nofollow');
         link.setAttribute('aria-label',`${t('downloadImage')} ${i+1}`);
         const image=document.createElement('img');
