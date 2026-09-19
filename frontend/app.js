@@ -140,12 +140,16 @@ document.addEventListener('DOMContentLoaded', () => {
         item.className='photo-item';
         item.setAttribute('role','button');
         item.setAttribute('tabindex','0');
-        item.setAttribute('aria-label',`${t('viewFullscreen')} ${i+1}`);
-        item.addEventListener('click',()=>openPhotoLightbox(i));
+        item.setAttribute('aria-label',`${t('photo')} ${i+1}`);
+        item.addEventListener('click',()=>{
+          photoGallery.querySelectorAll('.photo-item.photo-download-visible').forEach(el=>el.classList.remove('photo-download-visible'));
+          item.classList.add('photo-download-visible');
+        });
         item.addEventListener('keydown',event=>{
           if(event.key==='Enter'||event.key===' '){
             event.preventDefault();
-            openPhotoLightbox(i);
+            photoGallery.querySelectorAll('.photo-item.photo-download-visible').forEach(el=>el.classList.remove('photo-download-visible'));
+            item.classList.add('photo-download-visible');
           }
         });
 
@@ -154,6 +158,15 @@ document.addEventListener('DOMContentLoaded', () => {
         image.alt=`${t('photo')} ${i+1}`;
         image.loading=i<3?'eager':'lazy';
         image.referrerPolicy='no-referrer';
+
+        const downloadButton=document.createElement('a');
+        downloadButton.className='photo-download-button';
+        downloadButton.href=downloads[i];
+        downloadButton.setAttribute('download',getImageFilename(i,images[i]));
+        downloadButton.setAttribute('rel','nofollow');
+        downloadButton.setAttribute('aria-label',`${t('downloadImage')} ${i+1}`);
+        downloadButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        downloadButton.addEventListener('click',event=>event.stopPropagation());
 
         const viewButton=document.createElement('button');
         viewButton.type='button';
@@ -168,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const index=document.createElement('span');
         index.className='photo-index';
         index.textContent=String(i+1);
-        item.append(image,viewButton,index);
+        item.append(image,downloadButton,viewButton,index);
         photoGallery.append(item);
       }
       photoGallery.classList.remove('hidden');
@@ -208,6 +221,14 @@ document.addEventListener('DOMContentLoaded', () => {
   photoLightboxClose?.addEventListener('click',closePhotoLightbox);
   photoLightbox?.addEventListener('click',event=>{
     if(event.target===photoLightbox||event.target.classList.contains('photo-lightbox-backdrop'))closePhotoLightbox();
+  });
+  photoGallery?.addEventListener('click',event=>{
+    if(!event.target.closest('.photo-item'))return;
+    const item=event.target.closest('.photo-item');
+    if(event.target.closest('.photo-view-button,.photo-download-button'))return;
+    photoGallery.querySelectorAll('.photo-item.photo-download-visible').forEach(el=>{
+      if(el!==item)el.classList.remove('photo-download-visible');
+    });
   });
   photoLightboxDownload?.addEventListener('click',event=>{
     if(!photoLightboxDownload.href)event.preventDefault();
