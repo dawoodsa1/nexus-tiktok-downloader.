@@ -90,22 +90,56 @@ function extractAvatarFromHtml(html){
   } return '';
 }
 function extractPhotoUrls(item){
-  const images=item?.imagePost?.images;
-  if(!Array.isArray(images)) return [];
+  const groups=[
+    item?.imagePost?.images,
+    item?.imagePostInfo?.images,
+    item?.image_post_info?.images
+  ];
+  const images=groups.find(value=>Array.isArray(value)&&value.length)||[];
   const urls=[];
   for(const image of images){
     const candidates=[];
-    for(const candidate of [image?.imageURL,image?.displayImage,image?.ownerWatermarkedImage]){
+    for(const candidate of [
+      image?.imageURL,image?.displayImage,image?.ownerWatermarkedImage,
+      image?.display_image,image?.owner_watermarked_image
+    ]){
       if(Array.isArray(candidate?.urlList)) candidates.push(...candidate.urlList);
+      if(Array.isArray(candidate?.url_list)) candidates.push(...candidate.url_list);
       if(typeof candidate?.url==='string') candidates.push(candidate.url);
     }
-    const valid=candidates.filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
-    const preferred=valid.find(v=>!urls.includes(v)&&!/\.heic(?:$|[?#])/i.test(v))||valid.find(v=>!urls.includes(v))||valid.find(v=>!/\.heic(?:$|[?#])/i.test(v))||valid[0];
+    if(Array.isArray(image?.urlList)) candidates.push(...image.urlList);
+    if(Array.isArray(image?.url_list)) candidates.push(...image.url_list);
+    const valid=[...new Set(candidates)].filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
+    const preferred=valid.find(v=>!urls.includes(v)&&!\.heic(?:$|[?#])/i.test(v))
+      ||valid.find(v=>!urls.includes(v))
+      ||valid.find(v=>!\.heic(?:$|[?#])/i.test(v))
+      ||valid[0];
     if(preferred) urls.push(preferred);
   }
   return [...new Set(urls)].slice(0,MAX_IMAGE_COUNT);
 }
-function chooseHighestBitrate(info){
+function extractTikTokItemFromHtml(html,videoId){
+  const scripts=[];
+  const universal=html.match(/<script[^>]+id=[\"']__UNIVERSAL_DATA_FOR_REHYDRATION__[\"'][^>]*>([\s\S]*?)<\/script>/i);
+  if(universal) scripts.push(universal[1]);
+  const sigi=html.match(/<script[^>]+id=[\"']SIGI_STATE[\"'][^>]*>([\s\S]*?)<\/script>/i);
+  if(sigi) scripts.push(sigi[1]);
+  for(const raw of scripts){
+    try{
+      const json=JSON.parse(raw);
+      const universalItem=json?.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct||null;
+      if(universalItem) return universalItem;
+      const itemModule=json?.ItemModule;
+      if(itemModule&&typeof itemModule==='object'){
+        if(videoId&&itemModule[videoId]) return itemModule[videoId];
+        const first=Object.values(itemModule).find(item=>item&&typeof item==='object'&&(item?.imagePost||item?.imagePostInfo||item?.image_post_info||item?.video));
+        if(first) return first;
+      }
+    }catch{}
+  }
+  return null;
+}
+function chooseHighestBitratefunction chooseHighestBitrate(info){
   if(!Array.isArray(info))return null;
   return info.map(e=>({bitrate:Number(e?.Bitrate||0),url:Array.isArray(e?.PlayAddr?.UrlList)?e.PlayAddr.UrlList.find(v=>typeof v==='string'&&/^https?:\/\//i.test(v)):null})).filter(x=>x.url).sort((a,b)=>b.bitrate-a.bitrate)[0]?.url||null;
 }
@@ -134,8 +168,7 @@ async function extractTikTok(rawUrl){
   if(!page.ok)throw new Error(`TikTok returned HTTP ${page.status}.`);
   const html=await page.text();
   const cookies=getResponseCookies(page);
-  let item=null; const rehydrate=html.match(/<script[^>]+id=[\\"']__UNIVERSAL_DATA_FOR_REHYDRATION__[\\"'][^>]*>([\\s\\S]*?)<\/script>/i);
-  if(rehydrate){try{const json=JSON.parse(rehydrate[1]);item=json?.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct||null}catch{}}
+  const item=extractTikTokItemFromHtml(html,videoId);
   const photoUrls=extractPhotoUrls(item);
   const avatar=getAvatarUrl(item?.author)||extractAvatarFromHtml(html);
   if(photoUrls.length){
@@ -222,6 +255,8 @@ export default {
         const sourceUrl=validateTikTokUrl(url.searchParams.get('url'));
         let data;
         try{data=await extractTikTok(sourceUrl)}catch(primary){
+          const isPhotoPost=/\/photo\/\d+(?:[/?#]|$)/i.test(sourceUrl);
+          if(isPhotoPost) throw primary;
           const fallback=await fetchTikwmData(sourceUrl);
           if(fallback.images.length){
             data={id:'post',type:'image',title:fallback.title||'TikTok Photo',thumbnail:fallback.images[0],images:fallback.images,sourceUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:'https://www.tiktok.com/',Origin:'https://www.tiktok.com'},author:{name:'Creator',username:'user',avatar:''},videoDuration:0};
