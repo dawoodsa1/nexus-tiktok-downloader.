@@ -18,7 +18,7 @@ body{margin:0;background:#f6f7f9;color:#15171a;font-family:'Plus Jakarta Sans','
 .note{background:#fafbfc;border:1px solid #e3e5e9;border-radius:12px;padding:12px 14px;margin:16px 0}
 .links{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
 .links a{color:#15171a}
-.legal-footer{text-align:center;color:#8b9098;font-size:.72rem;padding:20px 0;direction:ltr}
+.legal-footer{text-align:center;color:#8b9098;font-size:.72rem;padding:20px 0;direction:ltr}.legal-footer a,.legal-footer a:visited{color:#555b64;text-decoration:none}.legal-footer a:hover,.legal-footer a:focus-visible{color:#15171a;text-decoration:underline}.legal-footer a[aria-current="page"]{color:#15171a;font-weight:700}
 .ar{font-family:'Cairo','Plus Jakarta Sans',Arial,sans-serif;direction:rtl;text-align:right}
 .ar ul{padding-right:22px;padding-left:0}
 .en{font-family:'Plus Jakarta Sans','Cairo',Arial,sans-serif;direction:ltr;text-align:left}
