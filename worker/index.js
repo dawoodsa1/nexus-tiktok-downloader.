@@ -2,6 +2,7 @@ const SESSION_TOKEN_TTL = 180;
 const DOWNLOAD_TOKEN_TTL = 300;
 const MAX_URL_LENGTH = 2048;
 const MAX_MEDIA_REDIRECTS = 3;
+const MAX_IMAGE_COUNT = 35;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const ALLOWED_TIKTOK_HOSTS = new Set(['tiktok.com','www.tiktok.com','m.tiktok.com','vm.tiktok.com','vt.tiktok.com','douyin.com','www.douyin.com']);
 
@@ -88,6 +89,22 @@ function extractAvatarFromHtml(html){
     const match=html.match(pattern); if(!match)continue; const decoded=decodeEscapedString(match[1]); if(decoded&&/^https?:\/\//i.test(decoded))return decoded;
   } return '';
 }
+function extractPhotoUrls(item){
+  const images=item?.imagePost?.images;
+  if(!Array.isArray(images)) return [];
+  const urls=[];
+  for(const image of images){
+    const candidates=[];
+    for(const candidate of [image?.imageURL,image?.displayImage,image?.ownerWatermarkedImage]){
+      if(Array.isArray(candidate?.urlList)) candidates.push(...candidate.urlList);
+      if(typeof candidate?.url==='string') candidates.push(candidate.url);
+    }
+    const valid=candidates.filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
+    const preferred=valid.find(v=>!urls.includes(v)&&!/\.heic(?:$|[?#])/i.test(v))||valid.find(v=>!urls.includes(v))||valid.find(v=>!/\.heic(?:$|[?#])/i.test(v))||valid[0];
+    if(preferred) urls.push(preferred);
+  }
+  return [...new Set(urls)].slice(0,MAX_IMAGE_COUNT);
+}
 function chooseHighestBitrate(info){
   if(!Array.isArray(info))return null;
   return info.map(e=>({bitrate:Number(e?.Bitrate||0),url:Array.isArray(e?.PlayAddr?.UrlList)?e.PlayAddr.UrlList.find(v=>typeof v==='string'&&/^https?:\/\//i.test(v)):null})).filter(x=>x.url).sort((a,b)=>b.bitrate-a.bitrate)[0]?.url||null;
@@ -110,34 +127,41 @@ async function resolveTikTokUrl(rawUrl){
   return validated;
 }
 async function extractTikTok(rawUrl){
-  const finalUrl=await resolveTikTokUrl(rawUrl), videoId=(finalUrl.match(/\/video\/(\d+)/)||[])[1]||null;
+  const finalUrl=await resolveTikTokUrl(rawUrl), videoId=(finalUrl.match(/\/(?:video|photo)\/(\d+)/)||[])[1]||null;
   let oembed={};
   try{const r=await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(finalUrl)}`,{headers:{Accept:'application/json','User-Agent':USER_AGENT},signal:AbortSignal.timeout(15000)});if(r.ok){try{oembed=await r.json()}catch{}}}catch{}
   const page=await fetch(finalUrl,{redirect:'follow',headers:{'User-Agent':USER_AGENT,'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8','Accept-Language':'en-US,en;q=0.9','Cache-Control':'no-cache','Upgrade-Insecure-Requests':'1'},signal:AbortSignal.timeout(20000)});
   if(!page.ok)throw new Error(`TikTok returned HTTP ${page.status}.`);
   const html=await page.text();
   const cookies=getResponseCookies(page);
-  let item=null; const rehydrate=html.match(/<script[^>]+id=[\"']__UNIVERSAL_DATA_FOR_REHYDRATION__[\"'][^>]*>([\s\S]*?)<\/script>/i);
+  let item=null; const rehydrate=html.match(/<script[^>]+id=[\\"']__UNIVERSAL_DATA_FOR_REHYDRATION__[\\"'][^>]*>([\\s\\S]*?)<\/script>/i);
   if(rehydrate){try{const json=JSON.parse(rehydrate[1]);item=json?.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct||null}catch{}}
+  const photoUrls=extractPhotoUrls(item);
+  const avatar=getAvatarUrl(item?.author)||extractAvatarFromHtml(html);
+  if(photoUrls.length){
+    for(const url of photoUrls) validateMediaUrl(url);
+    return {id:videoId||item?.id||'photo',type:'image',title:oembed.title||item?.desc||'TikTok Photo',thumbnail:photoUrls[0],images:photoUrls,sourceUrl:finalUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:finalUrl,Origin:'https://www.tiktok.com',Cookie:cookies},author:{name:oembed.author_name||item?.author?.nickname||'Creator',username:oembed.author_unique_id||item?.author?.uniqueId||'user',avatar},videoDuration:0};
+  }
   let mediaUrl=item?.video?.playAddr||null,downloadUrl=item?.video?.downloadAddr||null,hdMediaUrl=chooseHighestBitrate(item?.video?.bitrateInfo);
   const duration=Number(item?.video?.duration||0);
   if(!mediaUrl){const m=html.match(/\"playAddr\":\"([^\"]+)\"/);if(m){const d=decodeEscapedString(m[1]);if(d&&/^https?:\/\//i.test(d))mediaUrl=d;}}
   if(!downloadUrl){const m=html.match(/\"downloadAddr\":\"([^\"]+)\"/);if(m){const d=decodeEscapedString(m[1]);if(d&&/^https?:\/\//i.test(d))downloadUrl=d;}}
-  if(!mediaUrl&&!downloadUrl)throw new Error('Could not retrieve an available MP4 stream from TikTok.');
+  if(!mediaUrl&&!downloadUrl)throw new Error('Could not retrieve an available TikTok media source.');
   if(!mediaUrl)mediaUrl=downloadUrl;
-  const avatar=getAvatarUrl(item?.author)||extractAvatarFromHtml(html);
   for(const candidate of [mediaUrl,downloadUrl,hdMediaUrl].filter(Boolean)) validateMediaUrl(candidate);
-  return {id:videoId||item?.id||'video',type:'video',title:oembed.title||item?.desc||'TikTok Video',thumbnail:oembed.thumbnail_url||'',mediaUrl,downloadUrl,hdMediaUrl,sourceUrl:finalUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:finalUrl,Cookie:cookies},author:{name:oembed.author_name||item?.author?.nickname||'Creator',username:oembed.author_unique_id||item?.author?.uniqueId||'user',avatar},videoDuration:Number.isFinite(duration)?duration:0};
+  return {id:videoId||item?.id||'video',type:'video',title:oembed.title||item?.desc||'TikTok Video',thumbnail:oembed.thumbnail_url||'',mediaUrl,downloadUrl,hdMediaUrl,sourceUrl:finalUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:finalUrl,Origin:'https://www.tiktok.com',Cookie:cookies},author:{name:oembed.author_name||item?.author?.nickname||'Creator',username:oembed.author_unique_id||item?.author?.uniqueId||'user',avatar},videoDuration:Number.isFinite(duration)?duration:0};
 }
+
 async function fetchTikwmData(sourceUrl){
   const r=await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(sourceUrl)}&hd=1`,{headers:{'User-Agent':USER_AGENT,Accept:'application/json',Referer:'https://www.tikwm.com/'},signal:AbortSignal.timeout(20000)});
   if(!r.ok)throw new Error(`Fallback provider returned HTTP ${r.status}.`);
   const json=await r.json(); if(json?.code!==0||!json?.data)throw new Error(json?.msg||'Fallback provider returned no media.');
-  const data=json.data,urls=[data.hdplay,data.play,data.wmplay].filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
-  if(!urls.length)throw new Error('Fallback provider returned no downloadable media URL.');
+  const data=json.data;
+  const urls=[data.hdplay,data.play,data.wmplay].filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
   const safeUrls=[]; for(const url of urls){try{safeUrls.push(validateMediaUrl(url))}catch{}}
-  if(!safeUrls.length)throw new Error('Fallback provider returned no safe media URL.');
-  return {urls:safeUrls,title:data.title||'',duration:Number(data.duration||0)};
+  const images=Array.isArray(data.images)?data.images.filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v)).slice(0,MAX_IMAGE_COUNT):[];
+  const safeImages=[]; for(const url of images){try{safeImages.push(validateMediaUrl(url))}catch{}}
+  return {urls:[...new Set(safeUrls)],images:[...new Set(safeImages)],title:data.title||'',duration:Number(data.duration||0)};
 }
 function json(data,status=200){return new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
 function error(message,status=400){return json({success:false,error:{message}},status)}
@@ -199,10 +223,23 @@ export default {
         let data;
         try{data=await extractTikTok(sourceUrl)}catch(primary){
           const fallback=await fetchTikwmData(sourceUrl);
-          data={id:'video',type:'video',title:fallback.title||'TikTok Video',thumbnail:'',mediaUrl:fallback.urls[0],downloadUrl:fallback.urls[0],hdMediaUrl:fallback.urls[0],sourceUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:'https://www.tiktok.com/'},author:{name:'Creator',username:'user',avatar:''},videoDuration:fallback.duration||0};
+          if(fallback.images.length){
+            data={id:'post',type:'image',title:fallback.title||'TikTok Photo',thumbnail:fallback.images[0],images:fallback.images,sourceUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:'https://www.tiktok.com/',Origin:'https://www.tiktok.com'},author:{name:'Creator',username:'user',avatar:''},videoDuration:0};
+          }else{
+            if(!fallback.urls.length) throw primary;
+            data={id:'video',type:'video',title:fallback.title||'TikTok Video',thumbnail:'',mediaUrl:fallback.urls[0],downloadUrl:fallback.urls[0],hdMediaUrl:fallback.urls[0],sourceUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:'https://www.tiktok.com/'},author:{name:'Creator',username:'user',avatar:''},videoDuration:fallback.duration||0};
+          }
         }
-        const downloadToken=await createToken({scope:'download',sourceUrl:data.sourceUrl,mediaUrl:data.mediaUrl,downloadUrl:data.downloadUrl,hdMediaUrl:data.hdMediaUrl,mediaHeaders:data.mediaHeaders},DOWNLOAD_TOKEN_TTL,secret);
-        return json({success:true,data:{id:data.id,type:data.type,title:data.title,thumbnail:data.thumbnail,videoDuration:data.videoDuration,author:data.author,downloadUrl:`/api/download?token=${encodeURIComponent(downloadToken)}&quality=standard`,hdDownloadUrl:data.hdMediaUrl?`/api/download?token=${encodeURIComponent(downloadToken)}&quality=hd`:null}});
+        if(data.type==='image'&&Array.isArray(data.images)&&data.images.length){
+          const imageDownloadUrls=[];
+          for(const imageUrl of data.images){
+            const imageToken=await createToken({scope:'download',sourceUrl:data.sourceUrl,mediaType:'image',mediaUrl:imageUrl,mediaHeaders:data.mediaHeaders},DOWNLOAD_TOKEN_TTL,secret);
+            imageDownloadUrls.push(`/api/download?token=${encodeURIComponent(imageToken)}&quality=standard`);
+          }
+          return json({success:true,data:{id:data.id,type:'image',title:data.title,thumbnail:data.thumbnail,images:data.images,imageDownloadUrls,videoDuration:0,author:data.author,downloadUrl:imageDownloadUrls[0]||null,hdDownloadUrl:null}});
+        }
+        const downloadToken=await createToken({scope:'download',sourceUrl:data.sourceUrl,mediaType:'video',mediaUrl:data.mediaUrl,downloadUrl:data.downloadUrl,hdMediaUrl:data.hdMediaUrl,mediaHeaders:data.mediaHeaders},DOWNLOAD_TOKEN_TTL,secret);
+        return json({success:true,data:{id:data.id,type:'video',title:data.title,thumbnail:data.thumbnail,videoDuration:data.videoDuration,author:data.author,downloadUrl:`/api/download?token=${encodeURIComponent(downloadToken)}&quality=standard`,hdDownloadUrl:data.hdMediaUrl?`/api/download?token=${encodeURIComponent(downloadToken)}&quality=hd`:null}});
       }
       if(request.method==='GET'&&url.pathname==='/api/download'){
         const payload=await verifyToken(url.searchParams.get('token'),secret);
