@@ -163,28 +163,112 @@ async function resolveTikTokUrl(rawUrl){
 async function extractTikTok(rawUrl){
   const finalUrl=await resolveTikTokUrl(rawUrl), videoId=(finalUrl.match(/\/(?:video|photo)\/(\d+)/)||[])[1]||null;
   let oembed={};
-  try{const r=await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(finalUrl)}`,{headers:{Accept:'application/json','User-Agent':USER_AGENT},signal:AbortSignal.timeout(15000)});if(r.ok){try{oembed=await r.json()}catch{}}}catch{}
-  const page=await fetch(finalUrl,{redirect:'follow',headers:{'User-Agent':USER_AGENT,'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8','Accept-Language':'en-US,en;q=0.9','Cache-Control':'no-cache','Upgrade-Insecure-Requests':'1'},signal:AbortSignal.timeout(20000)});
+  try{
+    const r=await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(finalUrl)}`,{headers:{Accept:'application/json','User-Agent':USER_AGENT},signal:AbortSignal.timeout(15000)});
+    if(r.ok){try{oembed=await r.json()}catch{}}
+  }catch{}
+
+  const pageHeaders={
+    'User-Agent':USER_AGENT,
+    'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language':'en-US,en;q=0.9',
+    'Cache-Control':'no-cache',
+    'Upgrade-Insecure-Requests':'1'
+  };
+
+  const page=await fetch(finalUrl,{redirect:'follow',headers:pageHeaders,signal:AbortSignal.timeout(20000)});
   if(!page.ok)throw new Error(`TikTok returned HTTP ${page.status}.`);
-  const html=await page.text();
-  const cookies=getResponseCookies(page);
-  const item=extractTikTokItemFromHtml(html,videoId);
-  const photoUrls=extractPhotoUrls(item);
+  let html=await page.text();
+  let cookies=getResponseCookies(page);
+  let item=extractTikTokItemFromHtml(html,videoId);
+  let photoUrls=extractPhotoUrls(item);
+
+  // TikTok can gate the /photo/ web route while still exposing the same
+  // post data on the matching /video/{id} route. Try that route before
+  // falling back to any third-party provider.
+  if(!photoUrls.length && /\/photo\/\d+(?:[/?#]|$)/i.test(finalUrl)){
+    const match=finalUrl.match(/^(https:\/\/www\.tiktok\.com)\/@([^/]+)\/photo\/(\d+)/i);
+    if(match){
+      const alternateUrl=`${match[1]}/@${match[2]}/video/${match[3]}`;
+      try{
+        const alternatePage=await fetch(alternateUrl,{redirect:'follow',headers:pageHeaders,signal:AbortSignal.timeout(20000)});
+        if(alternatePage.ok){
+          const alternateHtml=await alternatePage.text();
+          const alternateItem=extractTikTokItemFromHtml(alternateHtml,videoId);
+          const alternatePhotos=extractPhotoUrls(alternateItem);
+          if(alternatePhotos.length){
+            html=alternateHtml;
+            cookies=getResponseCookies(alternatePage)||cookies;
+            item=alternateItem;
+            photoUrls=alternatePhotos;
+          }
+        }
+      }catch{}
+    }
+  }
+
   const avatar=getAvatarUrl(item?.author)||extractAvatarFromHtml(html);
+
   if(photoUrls.length){
     for(const url of photoUrls) validateMediaUrl(url);
-    return {id:videoId||item?.id||'photo',type:'image',title:oembed.title||item?.desc||'TikTok Photo',thumbnail:photoUrls[0],images:photoUrls,sourceUrl:finalUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:finalUrl,Origin:'https://www.tiktok.com',Cookie:cookies},author:{name:oembed.author_name||item?.author?.nickname||'Creator',username:oembed.author_unique_id||item?.author?.uniqueId||'user',avatar},videoDuration:0};
+    return {
+      id:videoId||item?.id||'photo',
+      type:'image',
+      title:oembed.title||item?.desc||item?.imagePost?.title||'TikTok Photo',
+      thumbnail:photoUrls[0],
+      images:photoUrls,
+      sourceUrl:finalUrl,
+      mediaHeaders:{
+        'User-Agent':USER_AGENT,
+        Referer:finalUrl,
+        Origin:'https://www.tiktok.com',
+        Cookie:cookies
+      },
+      author:{
+        name:oembed.author_name||item?.author?.nickname||'Creator',
+        username:oembed.author_unique_id||item?.author?.uniqueId||'user',
+        avatar
+      },
+      videoDuration:0
+    };
   }
+
   let mediaUrl=item?.video?.playAddr||null,downloadUrl=item?.video?.downloadAddr||null,hdMediaUrl=chooseHighestBitrate(item?.video?.bitrateInfo);
   const duration=Number(item?.video?.duration||0);
-  if(!mediaUrl){const m=html.match(/\"playAddr\":\"([^\"]+)\"/);if(m){const d=decodeEscapedString(m[1]);if(d&&/^https?:\/\//i.test(d))mediaUrl=d;}}
-  if(!downloadUrl){const m=html.match(/\"downloadAddr\":\"([^\"]+)\"/);if(m){const d=decodeEscapedString(m[1]);if(d&&/^https?:\/\//i.test(d))downloadUrl=d;}}
+  if(!mediaUrl){
+    const m=html.match(/\"playAddr\":\"([^\"]+)\"/);
+    if(m){const d=decodeEscapedString(m[1]);if(d&&/^https?:\/\//i.test(d))mediaUrl=d;}
+  }
+  if(!downloadUrl){
+    const m=html.match(/\"downloadAddr\":\"([^\"]+)\"/);
+    if(m){const d=decodeEscapedString(m[1]);if(d&&/^https?:\/\//i.test(d))downloadUrl=d;}
+  }
   if(!mediaUrl&&!downloadUrl)throw new Error('Could not retrieve an available TikTok media source.');
   if(!mediaUrl)mediaUrl=downloadUrl;
   for(const candidate of [mediaUrl,downloadUrl,hdMediaUrl].filter(Boolean)) validateMediaUrl(candidate);
-  return {id:videoId||item?.id||'video',type:'video',title:oembed.title||item?.desc||'TikTok Video',thumbnail:oembed.thumbnail_url||'',mediaUrl,downloadUrl,hdMediaUrl,sourceUrl:finalUrl,mediaHeaders:{'User-Agent':USER_AGENT,Referer:finalUrl,Origin:'https://www.tiktok.com',Cookie:cookies},author:{name:oembed.author_name||item?.author?.nickname||'Creator',username:oembed.author_unique_id||item?.author?.uniqueId||'user',avatar},videoDuration:Number.isFinite(duration)?duration:0};
+  return {
+    id:videoId||item?.id||'video',
+    type:'video',
+    title:oembed.title||item?.desc||'TikTok Video',
+    thumbnail:oembed.thumbnail_url||'',
+    mediaUrl,
+    downloadUrl,
+    hdMediaUrl,
+    sourceUrl:finalUrl,
+    mediaHeaders:{
+      'User-Agent':USER_AGENT,
+      Referer:finalUrl,
+      Origin:'https://www.tiktok.com',
+      Cookie:cookies
+    },
+    author:{
+      name:oembed.author_name||item?.author?.nickname||'Creator',
+      username:oembed.author_unique_id||item?.author?.uniqueId||'user',
+      avatar
+    },
+    videoDuration:Number.isFinite(duration)?duration:0
+  };
 }
-
 async function fetchTikwmData(sourceUrl){
   const r=await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(sourceUrl)}&hd=1`,{headers:{'User-Agent':USER_AGENT,Accept:'application/json',Referer:'https://www.tikwm.com/'},signal:AbortSignal.timeout(20000)});
   if(!r.ok)throw new Error(`Fallback provider returned HTTP ${r.status}.`);
