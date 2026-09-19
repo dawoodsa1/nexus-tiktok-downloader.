@@ -110,9 +110,9 @@ function extractPhotoUrls(item){
     if(Array.isArray(image?.urlList)) candidates.push(...image.urlList);
     if(Array.isArray(image?.url_list)) candidates.push(...image.url_list);
     const valid=[...new Set(candidates)].filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
-    const preferred=valid.find(v=>!urls.includes(v)&&!\.heic(?:$|[?#])/i.test(v))
+    const preferred=valid.find(v=>!urls.includes(v)&&!/\.heic(?:$|[?#])/i.test(v))
       ||valid.find(v=>!urls.includes(v))
-      ||valid.find(v=>!\.heic(?:$|[?#])/i.test(v))
+      ||valid.find(v=>!/\.heic(?:$|[?#])/i.test(v))
       ||valid[0];
     if(preferred) urls.push(preferred);
   }
