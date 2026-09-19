@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         en: 'About TikVideo, an independent bilingual TikTok video retrieval tool.',
         ar: 'معلومات عن TikVideo، أداة مستقلة ثنائية اللغة لجلب فيديوهات TikTok.'
       },
-      label: { en: 'INDEPENDENT WEB TOOL', ar: 'أداة ويب مستقلة' }
+      label: { en: 'ABOUT', ar: 'من نحن' }
     },
     '/privacy.html': {
       title: { en: 'Privacy Policy — TikVideo', ar: 'سياسة الخصوصية — TikVideo' },
