@@ -7,7 +7,7 @@ body[dir="rtl"]{font-family:'Cairo','Plus Jakarta Sans',sans-serif}
 button,input{font:inherit}button,a{-webkit-tap-highlight-color:transparent}button{border:0}
 .background-glow{display:none}
 .container{width:100%;max-width:900px;margin:0 auto;padding:1.25rem}
-.app-header{position:relative;z-index:2;border-bottom:1px solid var(--border);background:#fff;flex-shrink:0}
+.app-header{position:relative;z-index:2;border-bottom:1px solid var(--border);background:#fff;flex-shrink:0;direction:ltr}
 .header-container{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-top:.8rem;padding-bottom:.8rem}
 .brand-wrap,.header-actions{display:flex;align-items:center;gap:.65rem}
 .brand-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:#000;color:#f5f7fa;font-weight:900;border:1px solid #1c1c1c;box-shadow:2px 2px 0 rgba(254,44,85,.8),-2px -2px 0 rgba(20,207,201,.8);overflow:hidden}
