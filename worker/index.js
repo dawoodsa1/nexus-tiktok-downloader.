@@ -100,7 +100,7 @@ function extractPhotoUrls(item){
       if(typeof candidate?.url==='string') candidates.push(candidate.url);
     }
     const valid=candidates.filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
-    const preferred=valid.find(v=>!/\.heic(?:$|[?#])/i.test(v))||valid[0];
+    const preferred=valid.find(v=>!urls.includes(v)&&!/\.heic(?:$|[?#])/i.test(v))||valid.find(v=>!urls.includes(v))||valid.find(v=>!/\.heic(?:$|[?#])/i.test(v))||valid[0];
     if(preferred) urls.push(preferred);
   }
   return [...new Set(urls)].slice(0,MAX_IMAGE_COUNT);
