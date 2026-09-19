@@ -139,7 +139,7 @@ function extractTikTokItemFromHtml(html,videoId){
   }
   return null;
 }
-function chooseHighestBitratefunction chooseHighestBitrate(info){
+function chooseHighestBitrate(info){
   if(!Array.isArray(info))return null;
   return info.map(e=>({bitrate:Number(e?.Bitrate||0),url:Array.isArray(e?.PlayAddr?.UrlList)?e.PlayAddr.UrlList.find(v=>typeof v==='string'&&/^https?:\/\//i.test(v)):null})).filter(x=>x.url).sort((a,b)=>b.bitrate-a.bitrate)[0]?.url||null;
 }
