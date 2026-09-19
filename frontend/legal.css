@@ -8,7 +8,7 @@ body{margin:0;background:#f6f7f9;color:#15171a;font-family:'Plus Jakarta Sans','
 .brand{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;font-weight:800;letter-spacing:.06em;white-space:nowrap}
 .brand small{font-weight:600;color:#8b9098;letter-spacing:.02em}
 .header-actions{display:flex;align-items:center;gap:10px;direction:ltr;flex:0 0 auto;min-width:0}
-.back,.language-switch{color:#15171a;text-decoration:none;border:1px solid #d3d6dc;background:#fff;border-radius:10px;padding:7px 11px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.back,.language-switch{display:inline-flex;align-items:center;justify-content:center;color:#15171a;text-decoration:none;border:1px solid #d3d6dc;background:#fff;border-radius:10px;padding:7px 11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;line-height:1.2}
 .language-switch{font-weight:600}
 .card{background:#fff;border:1px solid #e3e5e9;border-radius:18px;padding:28px;margin-top:22px}
 .card h1{font-size:clamp(1.65rem,5vw,2.35rem);line-height:1.2;margin:0 0 10px}
