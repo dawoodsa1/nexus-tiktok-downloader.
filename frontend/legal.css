@@ -46,3 +46,5 @@ body{margin:0;background:#f6f7f9;color:#15171a;font-family:'Plus Jakarta Sans','
 .footer-links a{color:#444950;text-decoration:none;font-size:.64rem}
 .footer-links a:hover{text-decoration:underline;color:#202329}
 @media(max-width:600px){.app-footer{padding-bottom:.2rem}.footer-inner{padding-top:.7rem}.footer-links{gap:.7rem}}
+
+.app-footer .footer-links a[aria-current="page"]{color:#202329;font-weight:800;text-decoration:underline;text-underline-offset:3px}
