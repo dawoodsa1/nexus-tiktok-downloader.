@@ -22,7 +22,7 @@ body{margin:0;background:#f6f7f9;color:#15171a;font-family:'Plus Jakarta Sans','
 .ar{font-family:'Cairo','Plus Jakarta Sans',Arial,sans-serif;direction:rtl;text-align:right}
 .ar ul{padding-right:22px;padding-left:0}
 .en{font-family:'Plus Jakarta Sans','Cairo',Arial,sans-serif;direction:ltr;text-align:left}
-.muted{color:#777d85}
+.faq-list{margin-top:18px}.faq-list details{border-top:1px solid #e3e5e9;padding:14px 0}.faq-list details:last-child{border-bottom:1px solid #e3e5e9}.faq-list summary{cursor:pointer;font-size:.92rem;font-weight:700;list-style-position:outside}.faq-list details p{margin:.45rem 0 0}.muted{color:#777d85}
 .external{word-break:break-word}
 [hidden]{display:none!important}
 
