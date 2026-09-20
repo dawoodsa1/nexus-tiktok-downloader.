@@ -36,3 +36,13 @@ body{margin:0;background:#f6f7f9;color:#15171a;font-family:'Plus Jakarta Sans','
   .back,.language-switch{padding:7px 10px}
   .card p,.card li{font-size:.84rem}
 }
+
+/* Match the homepage footer layout while omitting the homepage tagline. */
+.app-footer{margin-top:auto;padding:0 0 .35rem;color:#4a4f57;text-align:center;flex-shrink:0}
+.footer-inner{width:100%;border-top:1px solid #e3e5e9;padding-top:.85rem;padding-bottom:0}
+.footer-brand{color:#3f444b;font-weight:800;font-size:.7rem;letter-spacing:.07em}
+.footer-brand span{color:#444950;font-weight:600}
+.footer-links{display:flex;justify-content:center;flex-wrap:wrap;gap:.8rem;margin-top:.55rem}
+.footer-links a{color:#444950;text-decoration:none;font-size:.64rem}
+.footer-links a:hover{text-decoration:underline;color:#202329}
+@media(max-width:600px){.app-footer{padding-bottom:.2rem}.footer-inner{padding-top:.7rem}.footer-links{gap:.7rem}}
