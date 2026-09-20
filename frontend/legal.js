@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
       privacy: 'Privacy',
       terms: 'Terms',
       copyright: 'Copyright',
-      contact: 'Contact'
+      contact: 'Contact',
+      faq: 'FAQ'
     },
     ar: {
       switch: 'English',
@@ -18,7 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
       privacy: 'الخصوصية',
       terms: 'الشروط',
       copyright: 'حقوق النشر',
-      contact: 'اتصل بنا'
+      contact: 'اتصل بنا',
+      faq: 'الأسئلة الشائعة'
     }
   };
 
@@ -98,6 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setText('[data-i18n="terms"]', 'terms');
     setText('[data-i18n="copyright"]', 'copyright');
     setText('[data-i18n="contact"]', 'contact');
+    setText('[data-i18n="faq"]', 'faq');
+    document.querySelectorAll('.footer-links a[data-footer-faq="true"]').forEach((link) => {
+      link.href = isArabic ? '/ar/faq.html' : '/faq.html';
+    });
 
     if (button) {
       button.textContent = translations[lang].switch;
