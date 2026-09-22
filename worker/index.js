@@ -282,10 +282,11 @@ async function fetchTikwmData(sourceUrl){
 }
 function json(data,status=200){return new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
 function error(message,status=400){return json({success:false,error:{message}},status)}
-function mediaResponse(response){
+function mediaResponse(response,filename){
   const headers=new Headers();
   for(const name of ['Content-Type','Content-Length','Content-Range','Accept-Ranges','ETag','Last-Modified']){const v=response.headers.get(name);if(v)headers.set(name,v)}
   headers.set('Cache-Control','no-store');
+  if(filename) headers.set('Content-Disposition','attachment; filename="' + filename + '"');
   return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
 async function fetchMedia(mediaUrl,mediaHeaders,request){
@@ -370,7 +371,11 @@ export default {
         const upstream=await fetchMedia(mediaUrl,payload.mediaHeaders||{},request);
         if(!upstream) return error('Unable to retrieve media.',502);
         if(!(upstream.ok||upstream.status===206)) return error(`Media source returned HTTP ${upstream.status}.`,502);
-        return mediaResponse(upstream);
+        const quality=url.searchParams.get('quality')==='hd'?'hd':'standard';
+        const filename=payload.mediaType==='image'
+          ?'tikvideo-image-download.jpg'
+          :('tikvideo-' + quality + '.mp4');
+        return mediaResponse(upstream,filename);
       }
       if(url.pathname==='/robots.txt') return new Response(`User-agent: *\nAllow: /\nSitemap: ${getOrigin(request)}/sitemap.xml\n`,{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'}});
       return assetResponse(request,env);
