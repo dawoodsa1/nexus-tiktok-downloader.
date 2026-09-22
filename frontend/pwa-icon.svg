@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#08090b"/>
+  <circle cx="256" cy="256" r="214" fill="none" stroke="#12d8d1" stroke-width="18" stroke-linecap="round" stroke-dasharray="650 700" transform="rotate(-52 256 256)"/>
+  <circle cx="256" cy="256" r="214" fill="none" stroke="#ff2d77" stroke-width="18" stroke-linecap="round" stroke-dasharray="650 700" transform="rotate(128 256 256)"/>
+  <text x="256" y="335" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" fill="#ffffff">t</text>
+</svg>

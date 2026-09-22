@@ -1,0 +1,29 @@
+{
+  "id": "/ar/",
+  "name": "TikVideo - تحميل فيديوهات وصور تيك توك",
+  "short_name": "TikVideo",
+  "description": "حمّل فيديوهات وصور TikTok المتاحة أونلاين بدون تسجيل أو تثبيت تطبيق.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/ar/",
+  "scope": "/ar/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f6f7f9",
+  "theme_color": "#f6f7f9",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
