@@ -20,19 +20,11 @@ function applySecurityHeaders(response) {
 
 function robotsResponse(request) {
   const origin = originOf(request);
-  return new Response(`User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\nSitemap: ${origin}/atom.xml?redirect=false&start-index=1&max-results=500\n`, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+  return new Response(`User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 
 function xmlEscape(value) {
   return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');
-}
-
-function atomResponse(request) {
-  const origin = originOf(request);
-  const updated = '2026-09-17T20:06:40Z';
-  const entries = [['/', 'TikVideo - TikTok Downloader'], ['/about.html', 'About TikVideo'], ['/privacy.html', 'Privacy Policy'], ['/terms.html', 'Terms of Service'], ['/copyright.html', 'Copyright'], ['/contact.html', 'Contact']];
-  const body = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\">\n  <id>${xmlEscape(origin)}/</id>\n  <title>TikVideo - TikTok Downloader</title>\n  <updated>${updated}</updated>\n  <link href=\"${xmlEscape(origin)}/\" rel=\"alternate\" type=\"text/html\" />\n${entries.map(([path, title]) => `  <entry>\n    <id>${xmlEscape(origin + (path || '/'))}</id>\n    <title>${xmlEscape(title)}</title>\n    <updated>${updated}</updated>\n    <link href=\"${xmlEscape(origin + (path || '/'))}\" rel=\"alternate\" type=\"text/html\" />\n  </entry>`).join('\\n')}\n</feed>\n`;
-  return new Response(body, { status: 200, headers: { 'Content-Type': 'application/atom+xml; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 
 function getClientKey(request, pathname) {
@@ -61,7 +53,6 @@ export default {
       return new Response(request.method === 'HEAD' ? null : response.body, { status: response.status, statusText: response.statusText, headers });
     }
     if (request.method === 'GET' && url.pathname === '/robots.txt') return applySecurityHeaders(robotsResponse(request));
-    if (request.method === 'GET' && url.pathname === '/atom.xml') return applySecurityHeaders(atomResponse(request));
     if (isApiPath) {
       try {
         const allowed = await enforceApiRateLimit(request, env, url.pathname);
