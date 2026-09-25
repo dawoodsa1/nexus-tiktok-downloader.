@@ -10,10 +10,16 @@
 <script>
 (function(){
   var path=location.pathname;
-  if(path==='/'||path==='/index.html'){
-    var preferred=(navigator.languages&&navigator.languages[0])||navigator.language||'';
-    if(/^ar(?:-|$)/i.test(preferred)) location.replace('/ar/'+location.search+location.hash);
-  }
+  if(path!=='/'&&path!=='/index.html') return;
+  try{
+    var saved=localStorage.getItem('nexus-language');
+    if(saved==='ar'||saved==='en') return;
+    var languages=navigator.languages||[];
+    var preferreds=languages.length?languages:[navigator.language||''];
+    var isArabic=preferreds.some(function(value){return /^ar(?:-|$)/i.test(value||'')});
+    localStorage.setItem('nexus-language',isArabic?'ar':'en');
+    if(isArabic) location.replace('/ar/'+location.search+location.hash);
+  }catch(e){}
 })();
 </script>
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
