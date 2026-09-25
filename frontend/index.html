@@ -7,6 +7,15 @@
 <meta name="description" content="Download available TikTok videos and photos online. Paste a TikTok post URL and use the available download option, with no registration or app installation.">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
 <meta name="googlebot" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<script>
+(function(){
+  var path=location.pathname;
+  if(path==='/'||path==='/index.html'){
+    var preferred=(navigator.languages&&navigator.languages[0])||navigator.language||'';
+    if(/^ar(?:-|$)/i.test(preferred)) location.replace('/ar/'+location.search+location.hash);
+  }
+})();
+</script>
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
 <link rel="apple-touch-icon" href="/favicon.ico">
