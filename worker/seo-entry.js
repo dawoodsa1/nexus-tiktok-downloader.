@@ -1,67 +1,72 @@
 import app from './index.js';
+import { canonicalRedirect, STATIC_FILES, ROBOTS_TEXT } from '../lib/site-routing.js';
+import { securityHeaders } from '../lib/security-headers.js';
 
-function originOf(request) {
-  return new URL(request.url).origin.replace(/\/$/, '');
+function applySecurityHeaders(response, request) {
+  const headers = new Headers(response.headers);
+  for (const [name, value] of Object.entries(securityHeaders(
+    headers.get('Content-Type'), new URL(request.url).protocol === 'https:'
+  ))) headers.set(name, value);
+  return new Response(request.method === 'HEAD' ? null : response.body, {
+    status: response.status, statusText: response.statusText, headers
+  });
 }
 
-function applySecurityHeaders(response) {
+function apiError(message, status, extraHeaders = {}) {
+  return new Response(JSON.stringify({ success: false, error: { message } }), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extraHeaders }
+  });
+}
+
+async function handleRequest(request, env, ctx) {
+  const url = new URL(request.url);
+  const destination = canonicalRedirect(url, request.method);
+  if (destination) return Response.redirect(destination,
+    request.method === 'GET' || request.method === 'HEAD' ? 301 : 308);
+
+  const isApiPath = url.pathname === '/api' || url.pathname.startsWith('/api/');
+  if (isApiPath) {
+    if (env.RATE_LIMITER) {
+      try {
+        const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        const result = await env.RATE_LIMITER.limit({ key: `${url.pathname}:${ip}` });
+        if (!result.success) return apiError('Too many requests. Please try again later.', 429, { 'Retry-After': '60' });
+      } catch {
+        return apiError('Rate limiting service unavailable.', 503);
+      }
+    }
+    const response = await app.fetch(request, env, ctx);
+    const headers = new Headers(response.headers);
+    headers.set('X-Robots-Tag', 'noindex');
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
+
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
+  }
+  if (url.pathname === '/robots.txt') {
+    return new Response(ROBOTS_TEXT, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=300' }
+    });
+  }
+
+  // An explicit public file map also prevents accidental exposure of backend files.
+  const file = Object.hasOwn(STATIC_FILES, url.pathname) ? STATIC_FILES[url.pathname] : null;
+  if (!file) return new Response('Not Found', { status: 404 });
+  const assetUrl = new URL(request.url);
+  assetUrl.pathname = `/${file}`;
+  const response = await env.ASSETS.fetch(new Request(assetUrl, request));
   const headers = new Headers(response.headers);
-  headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('X-Frame-Options', 'DENY');
-  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
-  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  if (headers.get('Content-Type')?.toLowerCase().includes('text/html')) {
-    headers.set('Content-Security-Policy', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; font-src 'self' https://fonts.gstatic.com data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://www.tiktok.com https://www.tikwm.com; frame-src https:; upgrade-insecure-requests");
+  if (url.pathname === '/favicon.ico' && response.ok) {
+    headers.set('Content-Type', 'image/x-icon');
+    headers.set('Cache-Control', 'public, max-age=86400, must-revalidate');
   }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-function robotsResponse(request) {
-  const origin = originOf(request);
-  return new Response(`User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
-}
-
-function xmlEscape(value) {
-  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');
-}
-
-function getClientKey(request, pathname) {
-  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 'unknown';
-  return `${pathname}:${ip}`;
-}
-
-async function enforceApiRateLimit(request, env, pathname) {
-  if (!env.RATE_LIMITER) return true;
-  const result = await env.RATE_LIMITER.limit({ key: getClientKey(request, pathname) });
-  return result.success;
-}
-
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const isOldWorkerHost = url.hostname === 'tikvideo.tikvid.workers.dev';
-    const isApiPath = url.pathname === '/api' || url.pathname.startsWith('/api/');
-    if ((request.method === 'GET' || request.method === 'HEAD') && isOldWorkerHost && !isApiPath) return Response.redirect(`https://tikto.video${url.pathname}${url.search}`, 301);
-    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/favicon.png') return Response.redirect(`${originOf(request)}/favicon.ico`, 301);
-    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/favicon.ico') {
-      const response = await env.ASSETS.fetch(request);
-      const headers = new Headers(response.headers);
-      headers.set('Content-Type', 'image/x-icon');
-      headers.set('Cache-Control', 'public, max-age=86400, must-revalidate');
-      return new Response(request.method === 'HEAD' ? null : response.body, { status: response.status, statusText: response.statusText, headers });
-    }
-    if (request.method === 'GET' && url.pathname === '/robots.txt') return applySecurityHeaders(robotsResponse(request));
-    if (isApiPath) {
-      try {
-        const allowed = await enforceApiRateLimit(request, env, url.pathname);
-        if (!allowed) return applySecurityHeaders(new Response(JSON.stringify({ success:false, error:{ message:'Too many requests. Please try again later.' } }), { status:429, headers:{ 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store', 'Retry-After':'60', 'X-Content-Type-Options':'nosniff' } }));
-      } catch {
-        return applySecurityHeaders(new Response(JSON.stringify({ success:false, error:{ message:'Rate limiting service unavailable.' } }), { status:503, headers:{ 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff' } }));
-      }
-    }
-    const response = await app.fetch(request, env, ctx);
-    return applySecurityHeaders(response);
+    return applySecurityHeaders(await handleRequest(request, env, ctx), request);
   }
 };

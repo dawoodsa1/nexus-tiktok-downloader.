@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const pages = {
-    '/about.html': {
+    '/about': {
       title: { en: 'About TikVideo', ar: 'عن TikVideo' },
       description: {
         en: 'About TikVideo, an independent bilingual TikTok video retrieval tool.',
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       label: { en: 'ABOUT', ar: 'من نحن' }
     },
-    '/privacy.html': {
+    '/privacy': {
       title: { en: 'Privacy Policy — TikVideo', ar: 'سياسة الخصوصية — TikVideo' },
       description: {
         en: 'TikVideo privacy information: accounts, browser preferences, service requests and technical data.',
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       label: { en: 'PRIVACY', ar: 'الخصوصية' }
     },
-    '/terms.html': {
+    '/terms': {
       title: { en: 'Terms of Use — TikVideo', ar: 'شروط الاستخدام — TikVideo' },
       description: {
         en: 'TikVideo terms of use for the independent TikTok video retrieval service.',
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       label: { en: 'TERMS', ar: 'الشروط' }
     },
-    '/copyright.html': {
+    '/copyright': {
       title: { en: 'Copyright — TikVideo', ar: 'حقوق النشر — TikVideo' },
       description: {
         en: 'TikVideo copyright and content removal information for rights holders.',
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       label: { en: 'COPYRIGHT', ar: 'حقوق النشر' }
     },
-    '/contact.html': {
+    '/contact': {
       title: { en: 'Contact — TikVideo', ar: 'اتصل بنا — TikVideo' },
       description: {
         en: 'Contact TikVideo for service, privacy and copyright requests.',
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setText('[data-i18n="contact"]', 'contact');
     setText('[data-i18n="faq"]', 'faq');
     document.querySelectorAll('.footer-links a[data-footer-faq="true"]').forEach((link) => {
-      link.href = isArabic ? '/ar/faq.html' : '/faq.html';
+      link.href = isArabic ? '/ar/faq' : '/faq';
     });
 
     if (button) {

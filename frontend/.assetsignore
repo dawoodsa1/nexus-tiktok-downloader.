@@ -1,0 +1,7 @@
+# Backend/development files must never be uploaded as public assets.
+server.js
+package.json
+package-lock.json
+node_modules/
+.env*
+.dev.vars*

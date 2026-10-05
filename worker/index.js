@@ -314,20 +314,10 @@ async function fetchMedia(mediaUrl,mediaHeaders,request){
   }
   return null;
 }
-async function assetResponse(request,env){
-  const response=await env.ASSETS.fetch(request);
-  const contentType=response.headers.get('content-type')||'';
-  if(!response.ok || !contentType.toLowerCase().includes('text/html')) return response;
-  const content=await response.text();
-  if(!content.includes('__CANONICAL_URL__')) return new Response(content,{status:response.status,statusText:response.statusText,headers:response.headers});
-  const headers=new Headers(response.headers); headers.set('Cache-Control','no-store');
-  return new Response(content.replaceAll('__CANONICAL_URL__',getOrigin(request)),{status:response.status,statusText:response.statusText,headers});
-}
-function getOrigin(request){return new URL(request.url).origin.replace(/\/$/,'')}
-
 export default {
   async fetch(request,env){
     const url=new URL(request.url);
+    if(url.pathname !== '/api' && !url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     const secret=env.TOKEN_SECRET;
     if(!secret||secret.length<32) return error('Server secret is not configured.',500);
     try{
@@ -377,8 +367,7 @@ export default {
           :('tikvideo-' + quality + '.mp4');
         return mediaResponse(upstream,filename);
       }
-      if(url.pathname==='/robots.txt') return new Response(`User-agent: *\nAllow: /\nSitemap: ${getOrigin(request)}/sitemap.xml\n`,{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'}});
-      return assetResponse(request,env);
+      return error('Not Found.',404);
     }catch(e){return error(e?.message||'Internal server error.',500)}
   }
 };
