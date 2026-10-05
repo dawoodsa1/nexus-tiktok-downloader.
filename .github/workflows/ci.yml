@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  WRANGLER_SEND_METRICS: 'false'
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -19,24 +22,27 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
 
       - name: Check JavaScript syntax
-        run: |
-          node --check worker/index.js
-          node --check worker/seo-entry.js
-          node --check frontend/app.js
-          node --check frontend/server.js
+        run: npm run check
+
+      - name: Test indexing routes and metadata
+        run: npm test
+
+      - name: Test real Cloudflare and Node servers
+        run: npm run test:runtime
 
       - name: Validate Wrangler configuration
         run: npx wrangler deploy --dry-run
 
       - name: Validate sitemap XML
-        run: python - <<'PY'
+        run: |
+          python - <<'PY'
           import xml.etree.ElementTree as ET
           ET.parse('frontend/sitemap.xml')
           print('sitemap.xml: valid XML')

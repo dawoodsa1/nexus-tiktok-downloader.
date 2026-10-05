@@ -7,6 +7,8 @@ import dns from 'node:dns/promises';
 import net from 'node:net';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { canonicalRedirect, STATIC_FILES, ROBOTS_TEXT } from '../lib/site-routing.js';
+import { securityHeaders } from '../lib/security-headers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,10 +19,6 @@ const SESSION_TOKEN_TTL = 180;
 const DOWNLOAD_TOKEN_TTL = 300;
 const MAX_URL_LENGTH = 2048;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-if (!SECRET || SECRET.trim().length < 32) {
-  throw new Error('TOKEN_SECRET is missing or too short. Add a stable secret of at least 32 characters to .env');
-}
 
 const ALLOWED_TIKTOK_HOSTS = new Set(['tiktok.com','www.tiktok.com','m.tiktok.com','vm.tiktok.com','vt.tiktok.com','douyin.com','www.douyin.com']);
 
@@ -210,54 +208,47 @@ async function fetchMedia(mediaUrl, mediaHeaders, clientRequest) {
 function sendJson(res,statusCode,data){res.writeHead(statusCode,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));}
 function sendError(res,statusCode,message){sendJson(res,statusCode,{success:false,error:{message}});}
 
-const FILE_MAP = {
-  '/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/legal.css':'legal.css',
-  '/about.html':'about.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/copyright.html':'copyright.html','/contact.html':'contact.html',
-  '/googlec0345ce99ca76489.html':'googlec0345ce99ca76489.html','/sitemap.xml':'sitemap.xml'
-};
-const INDEXABLE_PATHS = ['','/about.html','/privacy.html','/terms.html','/copyright.html','/contact.html'];
-
 function getPublicOrigin(req){
   const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
-  const forwardedHost = String(req.headers['x-forwarded-host'] || '').split(',')[0].trim();
   const protocol = forwardedProto === 'https' ? 'https' : 'http';
-  const host = forwardedHost || req.headers.host || `localhost:${PORT}`;
+  const host = req.headers.host || `localhost:${PORT}`;
   return `${protocol}://${host}`.replace(/\/$/,'');
 }
 
-function applyCanonicalPlaceholders(content, origin){ return content.replaceAll('__CANONICAL_URL__',origin); }
-
 async function serveFrontend(pathname,res,req){
-  const file = FILE_MAP[pathname];
+  const file = Object.hasOwn(STATIC_FILES, pathname) ? STATIC_FILES[pathname] : null;
   if (!file) return false;
-  let content = await fs.readFile(path.join(FRONTEND_DIR,file),'utf8');
+  const content = await fs.readFile(path.join(FRONTEND_DIR,file));
   const ext = path.extname(file);
-  const mime = ext === '.html' ? 'text/html' : ext === '.css' ? 'text/css' : ext === '.xml' ? 'application/xml' : 'application/javascript';
-  if (ext === '.html') content = applyCanonicalPlaceholders(content,getPublicOrigin(req));
-  res.writeHead(200,{'Content-Type':`${mime}; charset=utf-8`,'X-Content-Type-Options':'nosniff','Cache-Control':ext === '.html' ? 'public, max-age=300' : 'public, max-age=3600'});
-  res.end(content);
+  const mime = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8',
+    '.xml':'application/xml; charset=utf-8', '.js':'application/javascript; charset=utf-8',
+    '.svg':'image/svg+xml', '.png':'image/png', '.ico':'image/x-icon' }[ext];
+  res.writeHead(200,{'Content-Type':mime,'Content-Length':content.length,
+    ...securityHeaders(mime,getPublicOrigin(req).startsWith('https:')),
+    'Cache-Control':ext === '.html' ? 'public, max-age=300' : 'public, max-age=3600'});
+  res.end(req.method === 'HEAD' ? undefined : content);
   return true;
 }
 
 function sendRobots(req,res){
-  const origin = getPublicOrigin(req);
-  const body = `User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${origin}/sitemap.xml\n`;
-  res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public, max-age=3600','X-Content-Type-Options':'nosniff'}); res.end(body);
-}
-
-function sendSitemap(req,res){
-  const origin = getPublicOrigin(req);
-  const urls = INDEXABLE_PATHS.map(p => `<url><loc>${origin}${p || '/'}</loc></url>`).join('');
-  const body = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
-  res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public, max-age=3600','X-Content-Type-Options':'nosniff'}); res.end(body);
+  res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public, max-age=300','X-Content-Type-Options':'nosniff'});
+  res.end(req.method === 'HEAD' ? undefined : ROBOTS_TEXT);
 }
 
 const server = http.createServer(async (req,res) => {
   try {
-    const host = req.headers.host || `localhost:${PORT}`;
-    const parsed = new URL(req.url || '/',`http://${host}`);
-    if (req.method === 'GET' && parsed.pathname === '/robots.txt') return sendRobots(req,res);
-    if (req.method === 'GET' && parsed.pathname === '/sitemap.xml') return serveFrontend(parsed.pathname,res,req);
+    const origin = getPublicOrigin(req);
+    const parsed = new URL(req.url || '/',origin);
+    for (const [name,value] of Object.entries(securityHeaders('',origin.startsWith('https:')))) res.setHeader(name,value);
+    const isRead = req.method === 'GET' || req.method === 'HEAD';
+    const destination = canonicalRedirect(parsed,req.method);
+    if (destination) { res.writeHead(isRead ? 301 : 308,{Location:destination}); return res.end(); }
+    if (isRead && parsed.pathname === '/robots.txt') return sendRobots(req,res);
+    if (isRead && await serveFrontend(parsed.pathname,res,req)) return;
+    if (parsed.pathname === '/api' || parsed.pathname.startsWith('/api/')) {
+      res.setHeader('X-Robots-Tag','noindex');
+      if (!SECRET || SECRET.trim().length < 32) return sendError(res,500,'Server secret is not configured.');
+    }
     if (req.method === 'POST' && parsed.pathname === '/api/token') return sendJson(res,200,{success:true,data:{token:createToken({session:crypto.randomUUID()},SESSION_TOKEN_TTL)}});
     if (req.method === 'GET' && parsed.pathname === '/api/extract') {
       const auth=req.headers.authorization || ''; verifyToken(auth.replace(/^Bearer\s+/i,''));
@@ -282,7 +273,6 @@ const server = http.createServer(async (req,res) => {
       const headers={'Content-Type':contentType.includes('video') ? contentType : 'video/mp4','Content-Disposition':`attachment; filename="nexus_${safeId}_${quality}.mp4"`,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Accept-Ranges':acceptRanges};
       if(contentLength)headers['Content-Length']=contentLength; if(contentRange)headers['Content-Range']=contentRange; res.writeHead(mediaResponse.status===206?206:200,headers); return Readable.fromWeb(mediaResponse.body).pipe(res);
     }
-    if(req.method === 'GET' && await serveFrontend(parsed.pathname,res,req)) return;
     return sendError(res,404,'Not Found.');
   } catch(error){console.error('Nexus server error:',error);if(res.headersSent){try{res.destroy();}catch{}return;}const message=error?.message || 'Internal server error.';return sendError(res,/token/i.test(message)?401:400,message);}
 });
