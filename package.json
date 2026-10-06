@@ -18,6 +18,7 @@
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
+    "jsdom": "^27.4.0",
     "wrangler": "^4.40.0"
   }
 }
