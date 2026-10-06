@@ -51,7 +51,7 @@ body{margin:0;background:#f6f7f9;color:#15171a;font-family:'Plus Jakarta Sans','
 .app-footer .footer-links a[aria-current="page"]{color:#202329;font-weight:800;text-decoration:underline;text-underline-offset:3px}
 
 :where(a,summary):focus-visible{outline:3px solid #087c78;outline-offset:3px}
-.back,.language-switch{min-height:44px}
+.back,.language-switch{box-sizing:border-box;width:80px;height:36px;min-height:36px;line-height:1;font-weight:700}
 .footer-links a{font-size:.8rem;min-height:44px;display:inline-flex;align-items:center;padding-inline:.25rem}
 .card p,.card li{overflow-wrap:anywhere;line-height:1.8}
 .faq-list summary{min-height:44px;padding-block:.25rem}
@@ -63,7 +63,7 @@ body{margin:0;background:#f6f7f9;color:#15171a;font-family:'Plus Jakarta Sans','
   .brand{font-size:14px;flex:1 1 auto;letter-spacing:.03em}
   .brand small{display:none}
   .header-actions{width:auto;gap:6px}
-  .back,.language-switch{font-size:12px;padding:7px 9px;min-height:44px}
+  .back,.language-switch{font-size:12px;padding:0 9px;min-height:32px}
   .card{margin-top:16px;padding:18px;border-radius:16px}
   .card h1{font-size:1.5rem;line-height:1.45}
   .card h2{font-size:1.05rem;line-height:1.6;margin-top:20px}
@@ -82,4 +82,9 @@ body{margin:0;background:#f6f7f9;color:#15171a;font-family:'Plus Jakarta Sans','
   .footer-links{display:flex;flex-wrap:nowrap;justify-content:space-between;gap:4px;margin-top:4px;overflow-x:auto}
   .footer-links a{font-size:12px;min-height:36px;padding-inline:0;white-space:nowrap;flex:0 0 auto}
   [dir="rtl"] .footer-links a,.ar .footer-links a{font-size:clamp(10px,2.7vw,12px)}
+}
+
+/* Match homepage header controls across all information pages. */
+@media(max-width:699px){
+  .back,.language-switch{width:72px;height:32px;min-height:32px;padding:0 9px;font-size:12px;line-height:1;border-radius:8px}
 }
