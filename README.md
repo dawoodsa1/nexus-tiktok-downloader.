@@ -1,6 +1,6 @@
 # TikVideo
 
-TikVideo serves static English and Arabic pages and a Cloudflare Worker API for retrieving available TikTok videos and photos. The production origin is `https://tikto.video`.
+TikVideo serves static English and Arabic pages and a Cloudflare Worker API for retrieving available TikTok videos, photos and supported public stories. The production origin is `https://tikto.video`.
 
 ## Development and checks
 
@@ -26,10 +26,12 @@ For Cloudflare development, run `npx wrangler dev`. For the alternative Node ser
 - Canonical tags, language alternates, navigation and `frontend/sitemap.xml` all point directly to the final URLs.
 - Cloudflare must invoke the Worker before assets (`run_worker_first: true`). The Worker handles redirects and headers, then fetches the exact file with `html_handling: "none"`. Keep these settings together. Requests through the Worker count toward the Worker request allowance.
 - `frontend/.assetsignore` excludes backend and package files; the public file map also prevents access to unlisted files. Add new public pages to the map and sitemap together.
-- GitHub CI checks syntax, metadata, both runtimes, the deployment bundle and sitemap XML. The existing Cloudflare Workers Builds connection deploys the `main` branch; this repository does not contain Cloudflare credentials.
+- GitHub CI checks syntax, metadata, frontend interaction regressions, both runtimes, the deployment bundle and sitemap XML. The existing Cloudflare Workers Builds connection deploys the `main` branch; this repository does not contain Cloudflare credentials.
 - Keep the `tikto.video` custom domain attached to this Worker in Cloudflare. HTTP and `www` requests are redirected when they reach the Worker. A `www` DNS/custom-domain binding must exist in Cloudflare for `www` to reach this code. The old `workers.dev` endpoint intentionally remains disabled.
 - The alternative Node server honors `X-Forwarded-Proto` for TLS termination and should only be exposed through a trusted reverse proxy that sets that header.
 
 ## Search Console after deployment
 
 The sitemap URL stays `https://tikto.video/sitemap.xml`. Inspect the final canonical URLs and request indexing for important updated pages. Old `.html` URLs are expected to be excluded as redirected pages. Search Console summary reports can lag behind URL Inspection; the user's latest inspection already showed `/ar/` indexed. A successful live test confirms technical accessibility, not a guarantee that Google will index every page.
+
+Public story downloads use the existing media extraction path and require a supported, still-available share link. Private or expired stories are not guaranteed to work. Download links expire after five minutes; submit the source URL again when needed.
