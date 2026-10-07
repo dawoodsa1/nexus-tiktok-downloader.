@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://tikto.video/</loc></url>
-  <url><loc>https://tikto.video/ar/</loc></url>
-  <url><loc>https://tikto.video/about</loc></url>
-  <url><loc>https://tikto.video/privacy</loc></url>
-  <url><loc>https://tikto.video/terms</loc></url>
-  <url><loc>https://tikto.video/copyright</loc></url>
-  <url><loc>https://tikto.video/contact</loc></url>
-  <url><loc>https://tikto.video/faq</loc></url>
-  <url><loc>https://tikto.video/ar/faq</loc></url>
-  <url><loc>https://tikto.video/ar/about</loc></url>
-  <url><loc>https://tikto.video/ar/privacy</loc></url>
-  <url><loc>https://tikto.video/ar/terms</loc></url>
-  <url><loc>https://tikto.video/ar/copyright</loc></url>
-  <url><loc>https://tikto.video/ar/contact</loc></url>
+  <url><loc>https://tikto.video/</loc><lastmod>2026-10-06</lastmod></url>
+  <url><loc>https://tikto.video/ar/</loc><lastmod>2026-10-06</lastmod></url>
+  <url><loc>https://tikto.video/about</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/privacy</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/terms</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/copyright</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/contact</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/faq</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/ar/faq</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/ar/about</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/ar/privacy</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/ar/terms</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/ar/copyright</loc><lastmod>2026-10-07</lastmod></url>
+  <url><loc>https://tikto.video/ar/contact</loc><lastmod>2026-10-07</lastmod></url>
 </urlset>
