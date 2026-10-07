@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { JSDOM } from 'jsdom';
 import worker from '../worker/seo-entry.js';
 import { PAGE_FILES, STATIC_FILES, SITE_ORIGIN } from '../lib/site-routing.js';
 
@@ -20,6 +21,36 @@ test('the sitemap contains exactly the 14 final canonical pages', () => {
   assert.equal(urls.length, 14);
   assert.equal(new Set(urls).size, 14);
   assert.deepEqual(new Set(urls), new Set(pageHtml.keys()));
+});
+
+test('sitemap modification dates are valid, nonfuture dates for every final URL', () => {
+  const entries = [...sitemap.matchAll(/<url>([\s\S]*?)<\/url>/g)];
+  assert.equal(entries.length, urls.length);
+  for (const [, entry] of entries) {
+    const date = entry.match(/<lastmod>([^<]+)<\/lastmod>/)?.[1];
+    assert.match(date || '', /^\d{4}-\d{2}-\d{2}$/);
+    const timestamp = Date.parse(`${date}T00:00:00Z`);
+    assert.ok(Number.isFinite(timestamp) && timestamp <= Date.now());
+    assert.equal(new Date(timestamp).toISOString().slice(0, 10), date);
+  }
+});
+
+test('FAQ structured answers match the visible questions and point to a real download form', () => {
+  for (const pathname of ['/faq', '/ar/faq']) {
+    const document = new JSDOM(pageHtml.get(SITE_ORIGIN + pathname)).window.document;
+    const schema = JSON.parse(document.querySelector('script[type="application/ld+json"]').textContent);
+    const details = [...document.querySelectorAll('.faq-list details')];
+    assert.equal(schema.url, SITE_ORIGIN + pathname);
+    assert.equal(schema.inLanguage, document.documentElement.lang);
+    assert.equal(schema.mainEntity.length, details.length);
+    for (const [index, detail] of details.entries()) {
+      assert.equal(schema.mainEntity[index].name, detail.querySelector('summary').textContent);
+      assert.equal(schema.mainEntity[index].acceptedAnswer.text, detail.querySelector('p').textContent);
+    }
+    const formPath = pathname.startsWith('/ar/') ? '/ar/' : '/';
+    assert.ok(document.querySelector(`main a[href="${formPath}"]`));
+    assert.doesNotMatch(document.querySelector('main').textContent, /paste it above|الصقه أعلاه/i);
+  }
 });
 
 test('all pages have matching canonical, Open Graph and reciprocal language URLs', () => {

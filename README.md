@@ -24,6 +24,7 @@ For Cloudflare development, run `npx wrangler dev`. For the alternative Node ser
 - Informational pages use extensionless URLs, for example `/about` and `/ar/faq`.
 - `lib/site-routing.js` defines public files and permanent redirects. HTML files remain on disk with their `.html` extensions.
 - Canonical tags, language alternates, navigation and `frontend/sitemap.xml` all point directly to the final URLs.
+- Keep each sitemap `lastmod` accurate: update it when the page's content, meaningful links or structured data actually changes. Do not refresh all dates for CSS-only changes or every deployment. FAQ JSON-LD must match the visible questions and answers; the tests verify this.
 - Cloudflare must invoke the Worker before assets (`run_worker_first: true`). The Worker handles redirects and headers, then fetches the exact file with `html_handling: "none"`. Keep these settings together. Requests through the Worker count toward the Worker request allowance.
 - `frontend/.assetsignore` excludes backend and package files; the public file map also prevents access to unlisted files. Add new public pages to the map and sitemap together.
 - GitHub CI checks syntax, metadata, frontend interaction regressions, both runtimes, the deployment bundle and sitemap XML. The existing Cloudflare Workers Builds connection deploys the `main` branch; this repository does not contain Cloudflare credentials.
@@ -32,6 +33,6 @@ For Cloudflare development, run `npx wrangler dev`. For the alternative Node ser
 
 ## Search Console after deployment
 
-The sitemap URL stays `https://tikto.video/sitemap.xml`. Inspect the final canonical URLs and request indexing for important updated pages. Old `.html` URLs are expected to be excluded as redirected pages. Search Console summary reports can lag behind URL Inspection; the user's latest inspection already showed `/ar/` indexed. A successful live test confirms technical accessibility, not a guarantee that Google will index every page.
+The sitemap URL stays `https://tikto.video/sitemap.xml`. Submit it after meaningful updates and inspect the final canonical URLs. Manual indexing requests are optional for important updated pages; there is no need to request every sitemap URL individually. Old `.html` URLs are expected to be excluded as redirected pages. Search Console summary reports can lag behind URL Inspection. A successful live test confirms technical accessibility, not a guarantee that Google will index every page.
 
 Public story downloads use the existing media extraction path and require a supported, still-available share link. Private or expired stories are not guaranteed to work. Download links expire after five minutes; submit the source URL again when needed.
