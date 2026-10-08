@@ -84,6 +84,26 @@ test('all pages have matching canonical, Open Graph and reciprocal language URLs
   }
 });
 
+test('home-screen metadata uses real PNG icons from every public page', async () => {
+  const manifest = JSON.parse(await readFile(new URL('../frontend/site.webmanifest', import.meta.url), 'utf8'));
+  assert.equal(manifest.short_name, 'TikVideo');
+  assert.equal(manifest.display, 'browser');
+  assert.equal(manifest.start_url, undefined, 'shortcuts retain the selected page and language');
+  const icons = [...manifest.icons, { src: '/icons/icon-180.png', sizes: '180x180' }];
+  for (const icon of icons) {
+    assert.ok(Object.hasOwn(STATIC_FILES, icon.src), `public icon: ${icon.src}`);
+    const bytes = await readFile(new URL(`../frontend/${STATIC_FILES[icon.src]}`, import.meta.url));
+    assert.deepEqual(bytes.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    assert.equal(`${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}`, icon.sizes, icon.src);
+  }
+  for (const [url, html] of pageHtml) {
+    const links = tags(html, 'link');
+    assert.equal(links.find(link => link.rel === 'manifest')?.href, '/site.webmanifest', url);
+    assert.equal(links.find(link => link.rel === 'apple-touch-icon')?.href, '/icons/icon-180.png', url);
+    assert.ok(links.some(link => link.rel === 'icon' && link.type === 'image/png' && link.sizes === '192x192'), url);
+  }
+});
+
 test('both homepages have a crawlable language switch without JavaScript', () => {
   for (const [pathname, destination] of [['/', '/ar/'], ['/ar/', '/']]) {
     const switchLink = tags(pageHtml.get(SITE_ORIGIN + pathname), 'a').find(link => link.id === 'language-btn');

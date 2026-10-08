@@ -222,7 +222,8 @@ async function serveFrontend(pathname,res,req){
   const ext = path.extname(file);
   const mime = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8',
     '.xml':'application/xml; charset=utf-8', '.js':'application/javascript; charset=utf-8',
-    '.svg':'image/svg+xml', '.png':'image/png', '.ico':'image/x-icon' }[ext];
+    '.svg':'image/svg+xml', '.png':'image/png', '.ico':'image/x-icon',
+    '.webmanifest':'application/manifest+json; charset=utf-8' }[ext];
   res.writeHead(200,{'Content-Type':mime,'Content-Length':content.length,
     ...securityHeaders(mime,getPublicOrigin(req).startsWith('https:')),
     'Cache-Control':ext === '.html' ? 'public, max-age=300' : 'public, max-age=3600'});
