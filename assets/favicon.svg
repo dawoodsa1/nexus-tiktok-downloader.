@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="256" height="256" viewBox="0 0 256 256">
+  <title>TikVideo</title>
+  <!-- Full black canvas keeps the mark prominent inside circular search-result masks. -->
+  <rect width="256" height="256" fill="#000"/>
+  <defs>
+    <path id="mark" d="M108 44h40v52h43v36h-43v48c0 15 7 22 22 22h19v35h-25c-40 0-56-21-56-56v-49H77V96h31z"/>
+  </defs>
+  <g transform="translate(14 -9) rotate(-8 128 128) skewX(-8)">
+    <use xlink:href="#mark" transform="translate(-7 3)" fill="#fe2c55"/>
+    <use xlink:href="#mark" transform="translate(7 -3)" fill="#14cfc9"/>
+    <use xlink:href="#mark" fill="#f5f7fa"/>
+  </g>
+</svg>
