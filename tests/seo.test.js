@@ -105,8 +105,8 @@ test('installable app metadata uses a public start page and real PNG icons from 
   }
   for (const [url, html] of pageHtml) {
     const links = tags(html, 'link');
-    assert.equal(links.find(link => link.rel === 'manifest')?.href, '/site.webmanifest?v=brand2', url);
-    assert.equal(links.find(link => link.rel === 'apple-touch-icon')?.href, '/icons/icon-180.png?v=brand2', url);
+    assert.equal(links.find(link => link.rel === 'manifest')?.href, '/site.webmanifest?v=brand3', url);
+    assert.equal(links.find(link => link.rel === 'apple-touch-icon')?.href, '/icons/icon-180.png?v=brand3', url);
     assert.ok(links.some(link => link.rel === 'icon' && link.type === 'image/png' && link.sizes === '192x192'), url);
   }
 });
