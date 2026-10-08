@@ -1,7 +1,10 @@
 {
   "name": "TikVideo",
   "short_name": "TikVideo",
-  "display": "browser",
+  "id": "/",
+  "start_url": "/",
+  "display": "standalone",
+  "prefer_related_applications": false,
   "scope": "/",
   "theme_color": "#f6f7f9",
   "background_color": "#f6f7f9",

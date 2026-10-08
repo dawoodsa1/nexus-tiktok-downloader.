@@ -84,11 +84,17 @@ test('all pages have matching canonical, Open Graph and reciprocal language URLs
   }
 });
 
-test('home-screen metadata uses real PNG icons from every public page', async () => {
+test('installable app metadata uses a public start page and real PNG icons from every public page', async () => {
   const manifest = JSON.parse(await readFile(new URL('../frontend/site.webmanifest', import.meta.url), 'utf8'));
   assert.equal(manifest.short_name, 'TikVideo');
-  assert.equal(manifest.display, 'browser');
-  assert.equal(manifest.start_url, undefined, 'shortcuts retain the selected page and language');
+  assert.equal(manifest.display, 'standalone');
+  assert.equal(manifest.id, '/');
+  assert.equal(manifest.scope, '/');
+  assert.equal(manifest.prefer_related_applications, false);
+  assert.ok(pageHtml.has(new URL(manifest.start_url, SITE_ORIGIN).href), 'app starts on a public canonical page');
+  for (const size of ['192x192', '512x512']) {
+    assert.ok(manifest.icons.some(icon => icon.sizes === size && icon.purpose === 'any'), `install icon: ${size}`);
+  }
   const icons = [...manifest.icons, { src: '/icons/icon-180.png', sizes: '180x180' }];
   for (const icon of icons) {
     assert.ok(Object.hasOwn(STATIC_FILES, icon.src), `public icon: ${icon.src}`);
