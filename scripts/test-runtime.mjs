@@ -66,14 +66,17 @@ async function checkServer(label, command) {
       assert.equal(response.headers.get('Location'), origin + finalPath);
       await response.arrayBuffer();
     }
-    for (const file of ['app.js', 'styles.css', 'legal.css', 'favicon.ico', 'og-image.svg', 'sitemap.xml', 'googlec0345ce99ca76489.html']) {
+    for (const file of ['app.js', 'styles.css', 'legal.css', 'favicon.ico', 'og-image.svg', 'sitemap.xml', 'googlec0345ce99ca76489.html',
+      'site.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png']) {
       const response = await get('/' + file);
       assert.equal(response.status, 200, file);
+      if (file.endsWith('.png')) assert.match(response.headers.get('Content-Type'), /^image\/png\b/);
+      if (file.endsWith('.webmanifest')) assert.match(response.headers.get('Content-Type'), /^application\/manifest\+json\b/);
       assert.deepEqual(Buffer.from(await response.arrayBuffer()), await readFile(new URL(`../frontend/${file}`, import.meta.url)));
     }
     const robots = await get('/robots.txt');
     assert.match(await robots.text(), /Sitemap: https:\/\/tikto\.video\/sitemap\.xml/);
-    for (const pathname of ['/robots.txt', '/sitemap.xml', '/favicon.ico']) {
+    for (const pathname of ['/robots.txt', '/sitemap.xml', '/favicon.ico', '/site.webmanifest', '/icons/icon-192.png']) {
       const head = await get(pathname, { method: 'HEAD' });
       assert.equal(head.status, 200);
       assert.equal(await head.text(), '');

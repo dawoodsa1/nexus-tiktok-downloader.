@@ -1,7 +1,7 @@
 // Render the vector brand mark with Inkscape, then pack lossless PNG frames into ICO.
 // Run `node scripts/build-favicon.mjs` after updating assets/favicon.svg.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,7 +33,25 @@ try {
   });
   writeFileSync(join(root, 'frontend/favicon.ico'), Buffer.concat([directory, ...frames]));
   writeFileSync(join(root, 'frontend/favicon.png'), frames.at(-1));
+  const icons = join(root, 'frontend/icons');
+  mkdirSync(icons, { recursive: true });
+  for (const size of [180, 192, 512]) {
+    execFileSync('inkscape', [join(root, 'assets/favicon.svg'), '--export-type=png',
+      `--export-filename=${join(icons, `icon-${size}.png`)}`,
+      `--export-width=${size}`, `--export-height=${size}`],
+    { stdio: ['ignore', 'pipe', 'pipe'] });
+  }
+  // Keep the colored mark inside Android's centered 40%-radius safe area.
+  const maskable = readFileSync(join(root, 'assets/favicon.svg'), 'utf8')
+    .replace('<g transform=', '<g transform="translate(128 128) scale(0.72) translate(-128 -128)"><g transform=')
+    .replace('</g>', '</g></g>');
+  const maskableSource = join(temporary, 'maskable.svg');
+  writeFileSync(maskableSource, maskable);
+  execFileSync('inkscape', [maskableSource, '--export-type=png',
+    `--export-filename=${join(icons, 'icon-maskable-512.png')}`,
+    '--export-width=512', '--export-height=512'], { stdio: ['ignore', 'pipe', 'pipe'] });
   console.log(`Built favicon.ico (${offset} bytes) and favicon.png with sizes ${sizes.join(', ')}.`);
+  console.log('Built home-screen PNG icons at 180, 192 and 512px, plus a maskable 512px icon.');
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }

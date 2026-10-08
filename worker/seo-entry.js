@@ -58,6 +58,9 @@ async function handleRequest(request, env, ctx) {
   assetUrl.pathname = `/${file}`;
   const response = await env.ASSETS.fetch(new Request(assetUrl, request));
   const headers = new Headers(response.headers);
+  if (url.pathname === '/site.webmanifest' && response.ok) {
+    headers.set('Content-Type', 'application/manifest+json; charset=utf-8');
+  }
   if (url.pathname === '/favicon.ico' && response.ok) {
     headers.set('Content-Type', 'image/x-icon');
     headers.set('Cache-Control', 'public, max-age=86400, must-revalidate');
