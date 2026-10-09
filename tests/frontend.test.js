@@ -113,11 +113,16 @@ test('Arabic clipboard denial gives a helpful localized message, not a browser e
   assert.doesNotMatch(w.document.getElementById('error-message').textContent, /Permission denied/);
 });
 
-test('both language pages retain their static SEO metadata after JavaScript and explain stories', async t => {
+test('both language pages retain SEO metadata and explain stories and expired download links after JavaScript', async t => {
   for (const language of ['en', 'ar']) {
     const w = await page(t, () => {}, language);
     assert.equal(w.document.title, w.document.querySelector('meta[property="og:title"]').content);
     assert.equal(w.document.querySelector('meta[name="description"]').content, w.document.querySelector('meta[property="og:description"]').content);
     assert.match(w.document.querySelector('[data-i18n="faq7a"]').textContent, language === 'ar' ? /القصص العامة/ : /public TikTok story/);
+    const linkAnswer = w.document.querySelector('[data-i18n="faq4a"]');
+    const question = linkAnswer.closest('details');
+    question.open = true;
+    assert.match(linkAnswer.textContent, language === 'ar' ? /تنتهي صلاحية روابط التحميل بعد بضع دقائق/ : /Download links expire after a few minutes/);
+    assert.match(linkAnswer.textContent, language === 'ar' ? /أرسل رابط مشاركة تيك توك الأصلي مجددًا/ : /submit the original TikTok share link again/);
   }
 });
