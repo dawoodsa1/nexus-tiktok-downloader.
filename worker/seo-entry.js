@@ -1,6 +1,7 @@
 import app from './index.js';
 import { canonicalRedirect, STATIC_FILES, ROBOTS_TEXT } from '../lib/site-routing.js';
 import { securityHeaders } from '../lib/security-headers.js';
+import { notFoundPage, NOT_FOUND_HEADERS } from '../lib/not-found.js';
 
 function applySecurityHeaders(response, request) {
   const headers = new Headers(response.headers);
@@ -53,7 +54,7 @@ async function handleRequest(request, env, ctx) {
 
   // An explicit public file map also prevents accidental exposure of backend files.
   const file = Object.hasOwn(STATIC_FILES, url.pathname) ? STATIC_FILES[url.pathname] : null;
-  if (!file) return new Response('Not Found', { status: 404 });
+  if (!file) return new Response(notFoundPage(url.pathname), { status: 404, headers: NOT_FOUND_HEADERS });
   const assetUrl = new URL(request.url);
   assetUrl.pathname = `/${file}`;
   const response = await env.ASSETS.fetch(new Request(assetUrl, request));

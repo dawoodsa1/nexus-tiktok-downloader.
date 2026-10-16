@@ -167,9 +167,33 @@ test('API secret checks and rate limiting do not block robots or public pages', 
   assert.equal(unauthorized.status, 401);
 });
 
-test('private files and nonexistent pages return real 404 responses', async () => {
-  for (const pathname of ['/server.js', '/package.json', '/.env', '/missing-page', '/ar/missing.html', '/constructor']) {
-    const response = await worker.fetch(new Request(SITE_ORIGIN + pathname), noAssets);
+test('private files and missing pages return localized HTML with a real 404 and safe recovery links', async () => {
+  for (const pathname of ['/server.js', '/package.json', '/.env', '/missing-page', '/ar/missing.html', '/constructor', '/missing/%3Cscript%3E']) {
+    const requestUrl = SITE_ORIGIN + pathname + '?unknown=untrusted-marker';
+    const response = await worker.fetch(new Request(requestUrl), noAssets);
     assert.equal(response.status, 404, pathname);
+    assert.match(response.headers.get('Content-Type'), /^text\/html/);
+    assert.equal(response.headers.get('X-Robots-Tag'), 'noindex');
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.ok(response.headers.get('Content-Security-Policy'));
+    const html = await response.text();
+    const document = new JSDOM(html).window.document;
+    const ar = pathname.startsWith('/ar/');
+    assert.equal(document.documentElement.lang, ar ? 'ar' : 'en');
+    assert.equal(document.documentElement.dir, ar ? 'rtl' : 'ltr');
+    assert.equal(document.querySelector('h1').textContent, ar ? 'الصفحة غير موجودة' : 'Page not found');
+    assert.ok(document.querySelector(`main a[href="${ar ? '/ar/' : '/'}"]`));
+    assert.ok(document.querySelector(`main a[href="${ar ? '/ar' : ''}/faq"]`));
+    assert.ok(document.querySelector(`main a[href="${ar ? '/ar' : ''}/contact"]`));
+    assert.equal(document.querySelector('link[rel="canonical"]'), null);
+    assert.doesNotMatch(html, /untrusted-marker|%3Cscript%3E/);
+    for (const tag of [...tags(html, 'a'), ...tags(html, 'link')]) {
+      const target = new URL(tag.href, requestUrl);
+      if (target.origin === SITE_ORIGIN) assert.ok(Object.hasOwn(STATIC_FILES, target.pathname), tag.href);
+    }
+    const head = await worker.fetch(new Request(requestUrl, { method: 'HEAD' }), noAssets);
+    assert.equal(head.status, 404);
+    assert.equal(head.headers.get('Content-Type'), response.headers.get('Content-Type'));
+    assert.equal(await head.text(), '');
   }
 });

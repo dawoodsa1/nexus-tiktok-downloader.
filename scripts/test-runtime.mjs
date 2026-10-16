@@ -84,7 +84,17 @@ async function checkServer(label, command) {
     for (const pathname of ['/server.js', '/package.json', '/.assetsignore', '/missing-page', '/ar/missing.html']) {
       const response = await get(pathname);
       assert.equal(response.status, 404, pathname);
-      await response.arrayBuffer();
+      assert.match(response.headers.get('Content-Type'), /^text\/html/);
+      assert.equal(response.headers.get('X-Robots-Tag'), 'noindex');
+      assert.equal(response.headers.get('Cache-Control'), 'no-store');
+      assert.ok(response.headers.get('Content-Security-Policy'));
+      const html = await response.text();
+      assert.match(html, pathname.startsWith('/ar/') ? /lang="ar" dir="rtl"/ : /lang="en" dir="ltr"/);
+      assert.match(html, /class="home-link"/);
+      const head = await get(pathname, { method: 'HEAD' });
+      assert.equal(head.status, 404);
+      assert.equal(head.headers.get('X-Robots-Tag'), 'noindex');
+      assert.equal(await head.text(), '');
     }
     const api = await get('/api/token', { method: 'POST' });
     assert.equal(api.status, 500, 'API still requires a configured secret');
