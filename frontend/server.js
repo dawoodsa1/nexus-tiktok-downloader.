@@ -9,6 +9,7 @@ import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { canonicalRedirect, STATIC_FILES, ROBOTS_TEXT } from '../lib/site-routing.js';
 import { securityHeaders } from '../lib/security-headers.js';
+import { notFoundPage, NOT_FOUND_HEADERS } from '../lib/not-found.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -273,6 +274,13 @@ const server = http.createServer(async (req,res) => {
       const contentType=mediaResponse.headers.get('content-type') || 'video/mp4'; const contentLength=mediaResponse.headers.get('content-length'); const contentRange=mediaResponse.headers.get('content-range'); const acceptRanges=mediaResponse.headers.get('accept-ranges') || 'bytes'; const safeId=String(freshData.id || payload.id || 'video').replace(/[^a-zA-Z0-9_-]/g,'_'); const quality=payload.q === 'hd' ? 'hd' : 'sd';
       const headers={'Content-Type':contentType.includes('video') ? contentType : 'video/mp4','Content-Disposition':`attachment; filename="nexus_${safeId}_${quality}.mp4"`,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Accept-Ranges':acceptRanges};
       if(contentLength)headers['Content-Length']=contentLength; if(contentRange)headers['Content-Range']=contentRange; res.writeHead(mediaResponse.status===206?206:200,headers); return Readable.fromWeb(mediaResponse.body).pipe(res);
+    }
+    if (isRead && parsed.pathname !== '/api' && !parsed.pathname.startsWith('/api/')) {
+      res.writeHead(404, {
+        ...NOT_FOUND_HEADERS,
+        ...securityHeaders(NOT_FOUND_HEADERS['Content-Type'], origin.startsWith('https:'))
+      });
+      return res.end(req.method === 'HEAD' ? undefined : notFoundPage(parsed.pathname));
     }
     return sendError(res,404,'Not Found.');
   } catch(error){console.error('Nexus server error:',error);if(res.headersSent){try{res.destroy();}catch{}return;}const message=error?.message || 'Internal server error.';return sendError(res,/token/i.test(message)?401:400,message);}
